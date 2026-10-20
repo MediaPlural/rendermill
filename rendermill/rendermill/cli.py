@@ -531,7 +531,7 @@ def build_parser() -> argparse.ArgumentParser:
             "Keep the preview server alive this many seconds after the gate "
             "confirms (default: 3600 interactive / 60 headless). "
             "0 disables (server dies on confirm). "
-            "Env: VIDEO_CLAW_PREVIEW_TTL."
+            "Env: RENDERMILL_PREVIEW_TTL."
         ),
     )
     pr.set_defaults(func=cmd_render)
@@ -580,7 +580,7 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Keep the preview server alive this many seconds after the gate "
             "confirms (default: 3600 interactive / 60 headless). "
-            "0 disables. Env: VIDEO_CLAW_PREVIEW_TTL."
+            "0 disables. Env: RENDERMILL_PREVIEW_TTL."
         ),
     )
     pp.set_defaults(func=cmd_preview)

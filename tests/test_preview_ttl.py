@@ -4,7 +4,7 @@ Covers:
   * imports don't blow up
   * `--preview-ttl` parses on both subcommands
   * negative TTLs are rejected with a clear error
-  * `VIDEO_CLAW_PREVIEW_TTL` env var is honored
+  * `RENDERMILL_PREVIEW_TTL` env var is honored
   * the detached child process actually starts, owns its own session, and
     keeps the port serving past the parent's lifetime
 
@@ -43,17 +43,17 @@ def test_resolve_ttl_explicit():
 
 def test_resolve_ttl_env(monkeypatch):
     from rendermill.preview import resolve_ttl
-    monkeypatch.setenv("VIDEO_CLAW_PREVIEW_TTL", "777")
+    monkeypatch.setenv("RENDERMILL_PREVIEW_TTL", "777")
     assert resolve_ttl(None) == 777
     # Bogus env vars get ignored and we fall back to default.
-    monkeypatch.setenv("VIDEO_CLAW_PREVIEW_TTL", "not-a-number")
+    monkeypatch.setenv("RENDERMILL_PREVIEW_TTL", "not-a-number")
     val = resolve_ttl(None)
     assert isinstance(val, int) and val > 0
 
 
 def test_resolve_ttl_explicit_beats_env(monkeypatch):
     from rendermill.preview import resolve_ttl
-    monkeypatch.setenv("VIDEO_CLAW_PREVIEW_TTL", "777")
+    monkeypatch.setenv("RENDERMILL_PREVIEW_TTL", "777")
     assert resolve_ttl(10) == 10
 
 

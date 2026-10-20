@@ -10,7 +10,7 @@ Workflow:
 
 TTL resolution order:
   * explicit `preview_ttl` argument to `prompt_user`
-  * env var `VIDEO_CLAW_PREVIEW_TTL`
+  * env var `RENDERMILL_PREVIEW_TTL`
   * default: 3600 (interactive TTY) or 60 (headless / CI)
 
 `preview_ttl=0` keeps the legacy behavior: server dies the instant the user
@@ -62,13 +62,13 @@ def resolve_ttl(explicit: Optional[int]) -> int:
     """
     if explicit is not None:
         return max(0, int(explicit))
-    env_val = os.environ.get("VIDEO_CLAW_PREVIEW_TTL")
+    env_val = os.environ.get("RENDERMILL_PREVIEW_TTL")
     if env_val is not None and env_val.strip() != "":
         try:
             return max(0, int(env_val))
         except ValueError:
             print(
-                f"[preview] ignoring invalid VIDEO_CLAW_PREVIEW_TTL={env_val!r} "
+                f"[preview] ignoring invalid RENDERMILL_PREVIEW_TTL={env_val!r} "
                 "(want an integer number of seconds)",
                 file=sys.stderr,
             )

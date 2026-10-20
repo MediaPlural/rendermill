@@ -3,7 +3,7 @@
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/MediaPlural/rendermill/main/install.sh | bash
-#   curl -fsSL .../install.sh | VIDEO_CLAW_FROM=readme bash
+#   curl -fsSL .../install.sh | RENDERMILL_FROM=readme bash
 #   ./install.sh                          # direct invocation after git clone
 #
 # Behaviour:
@@ -274,10 +274,10 @@ EOF
 
 main() {
   # `channel` is internal telemetry — only useful when an outer wrapper sets
-  # VIDEO_CLAW_FROM=readme / =skill / etc. so we can grep installs by source.
+  # RENDERMILL_FROM=readme / =skill / etc. so we can grep installs by source.
   # Stay quiet for everyone else; "channel: unknown" alarmed users on 0.3.0.
-  if [ -n "${VIDEO_CLAW_FROM:-}" ]; then
-    note "channel: ${VIDEO_CLAW_FROM}"
+  if [ -n "${RENDERMILL_FROM:-}" ]; then
+    note "channel: ${RENDERMILL_FROM}"
   fi
   require_python3
   require_pipx
