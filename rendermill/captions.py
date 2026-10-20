@@ -43,6 +43,38 @@ _SENTENCE_END = (".", "!", "?", "…")
 _CLAUSE_BREAKS = (",", ";", ":", "—")
 
 
+def _merge_widow_chunks(
+    chunks: List[List[Tuple[float, float, str]]],
+    max_words: int = 8,
+) -> List[List[Tuple[float, float, str]]]:
+    """Post-pass: collapse 1-word "widow" chunks into the previous chunk.
+
+    The grouping pass above can end on a single word when a punctuation break
+    lands mid-phrase and the trailing fragment is too short to read as its own
+    caption — "with no captions" + "at all." collapses to "with no captions at
+    all." A 1-word caption that flashes for 263ms is a bug, not a feature.
+
+    When the previous chunk has room (its length + 1 <= max_words + 1), fold
+    the widow into it. Iterate because folding can expose a new widow in the
+    prior chunk's own successor. A single-word input is left alone: that one
+    word IS the entire caption, not a widow.
+    """
+    while True:
+        merged = False
+        out: List[List[Tuple[float, float, str]]] = []
+        for c in chunks:
+            if (len(c) == 1 and out
+                    and len(out[-1]) + 1 <= max_words + 1):
+                out[-1] = out[-1] + c
+                merged = True
+            else:
+                out.append(list(c))
+        if not merged:
+            return out
+        chunks = out
+    return out  # unreachable, satisfies type checkers
+
+
 def _group_into_chunks(
     words: List[Tuple[float, float, str]],
     max_words: int = 8,
@@ -58,6 +90,9 @@ def _group_into_chunks(
     Breaks, strongest first: sentence end >=3 words, clause break >=5, hard
     cap at max_words. A chunk also grows past the soft target only when the
     next word would otherwise start a new sentence.
+
+    A post-pass merges any 1-word trailing chunk back into the previous chunk
+    (a "widow" caption). See ``_merge_widow_chunks``.
     """
     chunks: List[List[Tuple[float, float, str]]] = []
     chunk: List[Tuple[float, float, str]] = []
@@ -78,7 +113,7 @@ def _group_into_chunks(
             chunk = []
     if chunk:
         chunks.append(chunk)
-    return chunks
+    return _merge_widow_chunks(chunks, max_words=max_words)
 
 
 def build_srt_for_slide(idx: int, offset_s: float, rate: float,

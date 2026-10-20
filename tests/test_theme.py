@@ -72,7 +72,19 @@ def test_caption_style_for_scales_vertical():
 
 
 def test_caption_style_for_avatar_slot_clears_the_badge():
-    assert th.caption_style_for("amber", width=1920, height=1080, avatar_slot=True).margin_r >= 560
+    """Pin the avatar-slot branch: at a smaller canvas the right margin must
+    still reach 560 — the historical badge-clearance value. A test that runs
+    at 1920x720 hits the `width >= 1600` rule first and never exercises the
+    avatar_slot branch, so the branch deletion survives the suite (QA audit
+    F4)."""
+    c = th.caption_style_for("amber", width=1280, height=720, avatar_slot=True)
+    assert c.margin_r >= 560, f"avatar_slot must push margin_r to 560; got {c.margin_r}"
+    # And without avatar_slot at the same small canvas, the margin is the
+    # theme's own (smaller) value, not the badge-clearance push.
+    d = th.caption_style_for("amber", width=1280, height=720)
+    assert d.margin_r < 560, (
+        f"non-avatar canvas at 1280x720 must NOT push to 560; got {d.margin_r}"
+    )
 
 
 def test_caption_colour_follows_the_theme():

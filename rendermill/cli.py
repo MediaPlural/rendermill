@@ -25,6 +25,7 @@ or stored once with `rendermill keys set EL=sk_...`.
 from __future__ import annotations
 import argparse
 import importlib.resources
+import json
 import re
 import shutil
 import sys
@@ -383,6 +384,27 @@ def cmd_render(args: argparse.Namespace) -> int:
         print("[render] gate REJECT — fix the flagged issue and re-render.",
               file=sys.stderr)
         return 3
+
+    if args.strict:
+        report_path = workdir / "rendermill-report.json"
+        if not report_path.exists():
+            print("[render] --strict: no report at "
+                  f"{report_path} — cannot verify burn status", file=sys.stderr)
+            return 4
+        try:
+            report = json.loads(report_path.read_text())
+        except Exception as e:  # noqa: BLE001
+            print(f"[render] --strict: failed to parse report: {e}",
+                  file=sys.stderr)
+            return 4
+        caps = report.get("captions") or {}
+        if not caps.get("burned"):
+            print(f"[render] --strict: caption burn did NOT complete: "
+                  f"{caps.get('failure')!r}. the MP4 at {out_path} is the "
+                  f"pre-caption master — do not ship.",
+                  file=sys.stderr)
+            return 5
+
     return 0
 
 
@@ -618,6 +640,16 @@ def build_parser() -> argparse.ArgumentParser:
             "confirms (default: 3600 interactive / 60 headless). "
             "0 disables (server dies on confirm). "
             "Env: RENDERMILL_PREVIEW_TTL."
+        ),
+    )
+    pr.add_argument(
+        "--strict", action="store_true",
+        help=(
+            "Exit non-zero if the render reports a problem (caption burn "
+            "failure, gate reject, missing ffprobe). Without this flag the "
+            "render may still exit 0 even when the report says something "
+            "went wrong, so the verifier becomes the only signal — and CI "
+            "without the verifier ships silently (QA audit F6)."
         ),
     )
     pr.set_defaults(func=cmd_render)

@@ -12,9 +12,9 @@ Checks (all exit non-zero on failure, so CI can gate on it):
   duration    container duration matches the report within one frame
   timeline    spans are contiguous — no gap, no overlap, no negative length
   captions    the report says the burn actually happened
-  pixels      the caption band really contains glyph pixels (a burned-in
-              caption, not just a report claim), and the dominant frame colour
-              matches the declared theme background
+  pixels      every chunk's burned ink is provably in its frame (per-chunk
+              sampling against the pre-caption master), and the dominant
+              frame colour matches the declared theme background
 
 Usage:
     python scripts/verify_render.py examples/deterministic-demo
@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -31,6 +32,16 @@ from pathlib import Path
 
 # One frame at 30fps. Anything tighter is noise from the encoder.
 FRAME_TOLERANCE_S = 1.0 / 30.0
+
+# Per-chunk diff threshold against the pre-caption master.
+#
+# Scales with the chunk's text length so a 1-word widow caption (the shipped
+# demo's last slide measures ~0.42% band diff at "all.") still passes when it
+# IS present, while a chunk whose burn silently fails (~0.00% diff) fails
+# regardless of chunk length. The floor sits under the measured 1-word
+# baseline; the slope approximates the linear growth in glyph pixels.
+_CHUNK_THRESHOLD_FLOOR = 0.0025   # 0.25% of band
+_CHUNK_THRESHOLD_SLOPE = 0.0003   # additional per character of caption text
 
 
 class CheckFailed(Exception):
@@ -82,6 +93,97 @@ def _frame_rgb(path: Path, at_s: float, width: int = 240, height: int = 135):
 def _hex_to_rgb(h):
     h = h.lstrip("#")
     return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+
+
+def _parse_srt_time(s: str) -> float:
+    """Parse an SRT timestamp like `00:00:01,516` -> 1.516 seconds."""
+    h, m, rest = s.split(":")
+    sec, ms = rest.split(",")
+    return int(h) * 3600 + int(m) * 60 + int(sec) + int(ms) / 1000.0
+
+
+def parse_srt(path: Path) -> list:
+    """Parse an SRT file into [(start_s, end_s, text), ...].
+
+    Used by check_pixels to know what captions to sample for and at what
+    midpoint. The text field is the joined body lines after the timing
+    line and is the ground truth that gets burned into the master.
+    """
+    out = []
+    blocks = re.split(r"\n\s*\n", path.read_text().strip())
+    for block in blocks:
+        lines = [ln for ln in block.splitlines() if ln.strip()]
+        if len(lines) < 3:
+            continue
+        # lines[0] = caption index, lines[1] = timing, lines[2..] = body
+        m = re.match(
+            r"(\d+:\d+:\d+,\d+)\s*-->\s*(\d+:\d+:\d+,\d+)", lines[1],
+        )
+        if not m:
+            continue
+        start = _parse_srt_time(m.group(1))
+        end = _parse_srt_time(m.group(2))
+        text = "\n".join(lines[2:]).replace("\n", " ").strip()
+        out.append((start, end, text))
+    return out
+
+
+def chunk_diff_threshold(text: str) -> float:
+    """Lowest band-diff fraction that proves ink was drawn for THIS chunk.
+
+    A 1-word widow caption ("all.", 4 chars) measures ~0.42% band diff at the
+    pre-caption master's mid-frame; the floor sits just below that so a
+    present widow still passes. A longer chunk draws more glyphs and tolerates
+    a proportionally higher threshold. A chunk whose burn is missing produces
+    ~0.00% diff and fails regardless of length.
+    """
+    chars = max(len(text), 1)
+    return _CHUNK_THRESHOLD_FLOOR + _CHUNK_THRESHOLD_SLOPE * chars
+
+
+def _resolve_captions_srt(mp4: Path, project_dir: Path = None) -> Path | None:
+    """Find the SRT sidecar that lists the captions the MP4 should contain.
+
+    The per-chunk pixel check parses this file to know WHICH captions to
+    sample for and at WHAT midpoint. Without it, the check reverts to a
+    single-sample bright-pixel heuristic that missed a 75% burn drop in QA
+    audit F1.
+
+    Search order:
+    1. `<project_dir>/video_build/captions.srt` (the canonical home)
+    2. `<mp4.parent>/video_build/captions.srt` (works when `out_path`
+       defaulted to `<project_dir>/out/<title>.mp4`)
+    3. `<mp4.parent.parent>/video_build/captions.srt` (a sibling layout)
+    """
+    candidates = []
+    if project_dir is not None:
+        candidates.append(Path(project_dir) / "video_build" / "captions.srt")
+    candidates.append(mp4.parent / "video_build" / "captions.srt")
+    candidates.append(mp4.parent.parent / "video_build" / "captions.srt")
+    for c in candidates:
+        if c.exists():
+            return c
+    return None
+
+
+def _resolve_intermediate_video(mp4: Path, project_dir: Path = None) -> Path | None:
+    """Find the pre-caption `concat_raw.mp4` to diff against.
+
+    The per-chunk pixel check compares each caption's burned frame against
+    the same frame in the master BEFORE captions were burned, so any band
+    pixel that differs IS caption ink. Without the intermediate, the check
+    falls back to a bright-pixel heuristic that QA audit F1 showed can
+    silently pass a 75%-missing poisoned master.
+    """
+    candidates = []
+    if project_dir is not None:
+        candidates.append(Path(project_dir) / "video_build" / "concat_raw.mp4")
+    candidates.append(mp4.parent / "video_build" / "concat_raw.mp4")
+    candidates.append(mp4.parent.parent / "video_build" / "concat_raw.mp4")
+    for c in candidates:
+        if c.exists():
+            return c
+    return None
 
 
 def check_container(mp4: Path) -> str:
@@ -146,19 +248,54 @@ def check_captions(report: dict) -> str:
     return f"{n} chunks burned"
 
 
-def check_pixels(mp4: Path, report: dict) -> str:
-    """Prove the pixels agree with the report.
+def check_pixels(mp4: Path, report: dict, project_dir: Path = None) -> str:
+    """Prove each caption actually drew ink onto the frame.
 
-    The caption band is the bottom ~18% of the frame. A burned caption puts
-    bright glyph pixels there; a silent no-caption burn leaves it flat. This
-    is the check that catches "the report said True but nothing was drawn".
+    The caption band is the bottom ~18% of the frame. A burned-in caption
+    puts glyph pixels there; a missing caption leaves it flat.
+
+    Per-chunk sampling at each chunk's midpoint against the pre-caption
+    `video_build/concat_raw.mp4`. A single sample only proves that SOME
+    chunk burned — a poisoned master with 15 of 20 captions silently
+    dropping out measures clean at the first chunk. Sampling every chunk
+    fails the missing ones regardless of length.
+
+    The per-chunk threshold scales with the chunk's text length so a 1-word
+    widow still passes when it IS present (~0.42% band diff measured in the
+    shipped demo's "all." caption at t=40.05s), while a missing chunk
+    (~0.00%) fails no matter how long it would have been.
     """
     spans = report["timeline"]["spans"]
     if not spans:
         raise CheckFailed("no spans to sample")
 
-    # Resolve the declared theme to its real background colour so we can prove
-    # the pixels are actually that theme, not some other palette.
+    # The master measured-total sets the upper bound for any caption.
+    total_s = spans[-1]["end_s"]
+
+    # The pre-caption intermediate. Without it, the bright-pixel fallback
+    # had ~2-4% noise (slide content itself paints the band), so a threshold
+    # between 0% and ~5% was arbitrary. Per-chunk diff against the master
+    # is decisive: any pixel in the caption band that differs IS caption ink.
+    raw = _resolve_intermediate_video(mp4, project_dir)
+
+    srt = _resolve_captions_srt(mp4, project_dir)
+    chunks = parse_srt(srt) if srt else []
+    if not chunks:
+        raise CheckFailed(
+            f"no captions.srt under {{video_build/}} — cannot per-chunk "
+            f"sample; the previous version of this check missed 75% burn "
+            f"drops (QA audit F1)."
+        )
+
+    # Skip captions entirely outside the measured master so a stale SRT
+    # can't trigger false alarms.
+    chunks = [(s, e, t) for s, e, t in chunks if t.strip()
+              and s < total_s and e > 0]
+    if not chunks:
+        raise CheckFailed("captions.srt has no in-range chunks")
+
+    # Resolve the declared theme to its real background colour so we can
+    # prove the pixels are actually that theme, not some other palette.
     bg = None
     theme_name = report.get("theme")
     if theme_name:
@@ -167,42 +304,33 @@ def check_pixels(mp4: Path, report: dict) -> str:
             from rendermill import theme as _theme
             bg = _hex_to_rgb(_theme.resolve(theme_name).bg)
         except Exception:
-            bg = None  # theme optional; band-contrast check still runs
+            bg = None
 
-    # Sample inside a slide that has narration long enough to hold a caption.
-    target = None
-    for s in spans:
-        if s["audio_s"] >= 3.0:
-            target = s
-            break
-    if target is None:
-        target = spans[0]
-    at_s = target["start_s"] + min(1.2, target["audio_s"] / 2.0)
-
-    w, h, data = _frame_rgb(mp4, at_s)
-
-    # Bottom band = bottom 18% of rows.
+    w, h = 240, 135
     band_top = int(h * 0.82)
-    total = (h - band_top) * w
+    band_pixels = (h - band_top) * w
 
-    msg = None
-    # PRIMARY: diff against the pre-caption intermediate.
-    #
-    # A bright-pixel threshold alone has no teeth — slide content itself puts
-    # bright pixels in the bottom band (a table row, a panel border), so an
-    # uncaptioned master measures 2.3% bright while a captioned one measures
-    # 4.0%. Any threshold between those passes or fails arbitrarily.
-    #
-    # Diffing the SAME timestamp against `video_build/concat_raw.mp4` is
-    # decisive: the raw file is the master before the caption burn, so any
-    # pixel that differs in the caption band IS caption ink. Verified as a
-    # negative control — this check fails on the raw file and passes on the
-    # final.
-    raw = mp4.parent / "video_build" / "concat_raw.mp4"
-    if not raw.exists():
-        raw = mp4.parent.parent / "video_build" / "concat_raw.mp4"
-    if raw.exists():
-        _, _, raw_data = _frame_rgb(raw, at_s, width=w, height=h)
+    raw_data_cache = {}
+
+    def _raw_at(at_s: float):
+        """Cache pre-caption master frames by mid-chunk timestamp to avoid
+        re-decoding the same frame across multiple sample rounds."""
+        if raw is None:
+            return None
+        # Round to the nearest 0.05s — caption midpoints cluster.
+        key = round(at_s / 0.05) * 0.05
+        if key not in raw_data_cache:
+            _, _, raw_data_cache[key] = _frame_rgb(
+                raw, at_s, width=w, height=h,
+            )
+        return raw_data_cache[key]
+
+    def _band_diff(data, raw_data):
+        """Fraction of band pixels whose summed-channel delta > 24."""
+        if raw_data is None:
+            # No pre-caption master to diff against — caller falls back to
+            # a bright-pixel count and uses the same threshold.
+            return -1.0
         changed = 0
         for y in range(band_top, h):
             base = y * w * 3
@@ -212,48 +340,93 @@ def check_pixels(mp4: Path, report: dict) -> str:
                         + abs(data[i + 1] - raw_data[i + 1])
                         + abs(data[i + 2] - raw_data[i + 2])) > 24:
                     changed += 1
-        frac = changed / max(total, 1)
-        if frac < 0.005:
-            raise CheckFailed(
-                f"caption band at {at_s:.2f}s is identical to the pre-caption "
-                f"master ({frac * 100:.2f}% changed) — captions did not burn"
-            )
-        msg = (f"caption ink confirmed at {at_s:.2f}s: {frac * 100:.2f}% of the "
-               f"band differs from the pre-caption master")
-    else:
-        # FALLBACK: no intermediate to diff against. Say so plainly rather
-        # than implying a guarantee this run cannot make.
-        bright = 0
-        for y in range(band_top, h):
-            row = y * w * 3
-            for x in range(w):
-                i = row + x * 3
-                lum = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]
-                if lum > 140:
-                    bright += 1
-        frac = bright / max(total, 1)
-        if frac < 0.005:
-            raise CheckFailed(
-                f"caption band at {at_s:.2f}s has almost no bright pixels "
-                f"({frac * 100:.2f}%)"
-            )
-        msg = (f"caption band at {at_s:.2f}s: {frac * 100:.2f}% bright pixels "
-               f"(WEAK — no pre-caption master to diff against)")
+        return changed / max(band_pixels, 1)
 
+    failures = []
+    sampled = 0
+    sampled_at = []
+    for s, e, text in chunks:
+        at_s = max(0.05, min((s + e) / 2.0, total_s - 0.05))
+        try:
+            _, _, pixels = _frame_rgb(mp4, at_s, width=w, height=h)
+        except CheckFailed as exc:
+            failures.append(f"chunk '{text[:40]!r}' at {at_s:.2f}s: {exc}")
+            continue
+        if raw is not None and raw.exists():
+            raw_data = _raw_at(at_s)
+            if raw_data is not None:
+                frac = _band_diff(pixels, raw_data)
+                threshold = chunk_diff_threshold(text)
+                if frac < threshold:
+                    failures.append(
+                        f"chunk '{text[:40]!r}' at {at_s:.2f}s: only "
+                        f"{frac * 100:.2f}% band differs (threshold "
+                        f"{threshold * 100:.2f}% for {len(text)} chars) — "
+                        f"this caption did not burn"
+                    )
+                    continue
+        else:
+            # Without a pre-caption master, fall back to a bright-pixel check.
+            # Treat the same per-chunk threshold as a fraction of the band's
+            # bright count rather than a diff count (same units, different
+            # numerator).
+            bright = 0
+            for y in range(band_top, h):
+                base = y * w * 3
+                for x in range(w):
+                    i = base + x * 3
+                    lum = (0.2126 * pixels[i] + 0.7152 * pixels[i + 1]
+                           + 0.0722 * pixels[i + 2])
+                    if lum > 140:
+                        bright += 1
+            frac = bright / max(band_pixels, 1)
+            threshold = chunk_diff_threshold(text)
+            if frac < threshold:
+                failures.append(
+                    f"chunk '{text[:40]!r}' at {at_s:.2f}s: only "
+                    f"{frac * 100:.2f}% bright pixels (threshold "
+                    f"{threshold * 100:.2f}%) — this caption did not "
+                    f"burn (WEAK — no pre-caption master to diff against)"
+                )
+                continue
+        sampled += 1
+        sampled_at.append(at_s)
+
+    if failures:
+        n = len(chunks)
+        head = "; ".join(failures[:3])
+        more = f"; ... {len(failures) - 3} more" if len(failures) > 3 else ""
+        raise CheckFailed(
+            f"{len(failures)} of {n} captions did not burn: {head}{more}"
+        )
+
+    msg = (f"per-chunk ink confirmed across {sampled} captions "
+           f"(first @ {sampled_at[0]:.2f}s, last @ {sampled_at[-1]:.2f}s)")
     if bg:
         # Dominant colour of the top band should be the theme background.
-        counts = {}
-        for y in range(0, max(1, band_top - 1)):
-            row = y * w * 3
-            for x in range(w):
-                i = row + x * 3
-                key = (data[i], data[i + 1], data[i + 2])
-                counts[key] = counts.get(key, 0) + 1
-        dom = max(counts, key=counts.get)
-        if max(abs(dom[i] - bg[i]) for i in range(3)) > 12:
-            raise CheckFailed(
-                f"dominant frame colour {dom} is not the declared theme bg {bg}")
-        msg += f", bg matches theme (#{bg[0]:02x}{bg[1]:02x}{bg[2]:02x})"
+        # Sample at the first chunk's midpoint — the theme is deck-wide.
+        at_s = sampled_at[0]
+        try:
+            _, _, pixels = _frame_rgb(mp4, at_s, width=w, height=h)
+            counts = {}
+            for y in range(0, max(1, band_top - 1)):
+                base = y * w * 3
+                for x in range(w):
+                    i = base + x * 3
+                    key = (pixels[i], pixels[i + 1], pixels[i + 2])
+                    counts[key] = counts.get(key, 0) + 1
+            dom = max(counts, key=counts.get)
+            if max(abs(dom[i] - bg[i]) for i in range(3)) > 12:
+                raise CheckFailed(
+                    f"dominant frame colour {dom} is not the declared "
+                    f"theme bg {bg}")
+            msg += (f", bg matches theme "
+                    f"(#{bg[0]:02x}{bg[1]:02x}{bg[2]:02x})")
+        except CheckFailed:
+            raise
+        except Exception:
+            # Theme bg match is a bonus check; never block on a probe failure.
+            pass
     return msg
 
 
@@ -283,7 +456,7 @@ def main() -> int:
         ("duration",  lambda: check_duration(mp4, report)),
         ("timeline",  lambda: check_timeline(report)),
         ("captions",  lambda: check_captions(report)),
-        ("pixels",    lambda: check_pixels(mp4, report)),
+        ("pixels",    lambda: check_pixels(mp4, report, project_dir=proj)),
     ]
     print(f"verifying {mp4.name}")
     failed = 0

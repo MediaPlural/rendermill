@@ -10,6 +10,17 @@ trim differently per slide. Measured on the 5-slide assessment demo, the
 per-slide error ranged from -0.026s to +0.000s and the master came out
 +0.046s longer than the sum of its parts.
 
+PROVENANCE NOTE (QA audit F7)
+The original drift numbers cited in this docstring, in ASSESSMENT.md, and
+on slide 3 of the deterministic-demo deck came from a 5-slide render
+report that has since been superseded by the deterministic-renderer demo
+at e813357. The committed 6-slide deterministic-demo's measured_total_s
+(40.327s) and arithmetic drift worst (0.0455s) agree with the originally
+reported per-slide shape — but the cited `48.062s vs 48.015s` totals and
+the 5-row per-slide table on slide 3 are preserved from that earlier
+artifact. If you re-render and see drift numbers that do not match what's
+on slide 3, the slide-3 table is the older artefact — not a regression.
+
 Captions, clip cuts and the explainer gates all key off the same timeline, so
 that drift does not stay in one place — it desynchronises captions from
 clips, and makes the gates judge the wrong moments.
