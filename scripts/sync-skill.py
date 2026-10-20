@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Refresh the bundled skill snapshot from the live ~/.claude/skills/video-claw/.
+"""Refresh the bundled skill snapshot from the live ~/.claude/skills/rendermill/.
 
-The package ships SKILL.md + references/ inside `video_claw/skill_data/video-claw/`
-so that `video-claw install-skill` can lay them down on a fresh machine via
+The package ships SKILL.md + references/ inside `rendermill/skill_data/rendermill/`
+so that `rendermill install-skill` can lay them down on a fresh machine via
 `importlib.resources`. That bundled snapshot is a copy of the *live* skill the
-developer edits at `~/.claude/skills/video-claw/`. Two sources, no symlink.
+developer edits at `~/.claude/skills/rendermill/`. Two sources, no symlink.
 
 This helper is the one-way sync: live -> bundle. Run it before tagging a release
 (or any time you've edited the live skill and want the change to ship in the
@@ -29,10 +29,10 @@ import shutil
 import sys
 from pathlib import Path
 
-SKILL_NAME = "video-claw"
+SKILL_NAME = "rendermill"
 LIVE = Path.home() / ".claude" / "skills" / SKILL_NAME
 REPO_ROOT = Path(__file__).resolve().parent.parent
-BUNDLE = REPO_ROOT / "video_claw" / "skill_data" / SKILL_NAME
+BUNDLE = REPO_ROOT / "rendermill" / "skill_data" / SKILL_NAME
 
 
 def _iter_files(root: Path) -> list[Path]:

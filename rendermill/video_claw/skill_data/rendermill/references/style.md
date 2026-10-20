@@ -1,6 +1,6 @@
 # Slide style guide
 
-This guide is for Claude (or any LLM driving video-claw) when authoring slide
+This guide is for Claude (or any LLM driving rendermill) when authoring slide
 HTML. It captures the design tokens, the typography hierarchy, and the layout
 patterns that ship with the package.
 

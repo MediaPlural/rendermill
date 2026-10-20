@@ -5,10 +5,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "rendermill"
 version = "0.8.0"
-description = "Rendermill — narrated slide videos from HTML + a storyboard. The render pipeline (MIT fork of video-claw; attribution preserved)."
+description = "Rendermill — narrated slide videos from HTML + a storyboard. The render pipeline 
 readme = "README.md"
 requires-python = ">=3.10"
-authors = [{ name = "Amir Fish" }]
+authors = [{ name = "Justin Sharpe" }]
 license = { text = "MIT" }
 keywords = ["video", "tts", "elevenlabs", "fal", "narration", "slides", "lipsync"]
 classifiers = [
@@ -25,17 +25,17 @@ dependencies = [
 ]
 
 [project.scripts]
-rendermill = "video_claw.cli:main"
+rendermill = "rendermill.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/MediaPlural/rendermill"
 Issues = "https://github.com/MediaPlural/rendermill/issues"
 
 [tool.setuptools.packages.find]
-include = ["video_claw*"]
+include = ["rendermill*"]
 
 [tool.setuptools.package-data]
-video_claw = [
+rendermill = [
   "templates/*.html",
   "templates/*.css",
   "assets/*.png",

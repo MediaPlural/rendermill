@@ -116,7 +116,7 @@ def cmd_init(args: argparse.Namespace) -> int:
 
 def _iter_skill_files() -> List[Path]:
     """List every file the bundled skill ships with, as relative paths."""
-    root = importlib.resources.files("video_claw") / "skill_data" / SKILL_NAME
+    root = importlib.resources.files("rendermill") / "skill_data" / SKILL_NAME
     out: List[Path] = []
     for entry in root.iterdir():
         if entry.is_file():
@@ -136,7 +136,7 @@ def cmd_install_skill(args: argparse.Namespace) -> int:
     `--target` overrides the destination (used by tests and power users who
     keep their skills in an alternate location).
     """
-    source_root = importlib.resources.files("video_claw") / "skill_data" / SKILL_NAME
+    source_root = importlib.resources.files("rendermill") / "skill_data" / SKILL_NAME
     if not source_root.is_dir():
         print(
             "error: bundled skill data not found in the installed package.\n"

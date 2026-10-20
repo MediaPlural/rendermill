@@ -21,7 +21,7 @@ def _make_test_master(tmp_path, duration_s=6.0):
 
 
 def test_build_clips_hook_and_slides():
-    from video_claw.clips import build_clips
+    from rendermill.clips import build_clips
     slides = [
         {"narration": "hook"},
         {"narration": "mid", "role": "question"},
@@ -41,13 +41,13 @@ def test_build_clips_hook_and_slides():
 
 
 def test_build_clips_synthetic_cta():
-    from video_claw.clips import build_clips
+    from rendermill.clips import build_clips
     clips = build_clips([{"narration": "a"}, {"narration": "b"}], [1.0, 1.0])
     assert [c.role for c in clips] == ["hook", "slide_01", "cta"]
 
 
 def test_emit_clips_real_ffmpeg(tmp_path):
-    from video_claw.clips import build_clips, emit_clips
+    from rendermill.clips import build_clips, emit_clips
     master = _make_test_master(tmp_path)
     slides = [
         {"narration": "hook text", "role": "hook"},
@@ -75,7 +75,7 @@ def test_emit_clips_real_ffmpeg(tmp_path):
 
 
 def test_clips_cfg_resolution():
-    from video_claw.clips import clips_cfg
+    from rendermill.clips import clips_cfg
     assert clips_cfg({}) is None
     assert clips_cfg({"clips": False}) is None
     assert clips_cfg({"clips": True}) == {"emit": True}

@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
-# video-claw one-command installer.
+# rendermill one-command installer.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/amirfish1/video-claw/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/MediaPlural/rendermill/main/install.sh | bash
 #   curl -fsSL .../install.sh | VIDEO_CLAW_FROM=readme bash
 #   ./install.sh                          # direct invocation after git clone
 #
 # Behaviour:
 #   - Verifies python3 >= 3.10, pipx, and a Chromium-class browser.
-#   - `pipx install --force git+https://github.com/amirfish1/video-claw` (idempotent).
-#   - When stdin is a TTY (or /dev/tty is openable), runs `video-claw setup`
+#   - `pipx install --force git+https://github.com/MediaPlural/rendermill` (idempotent).
+#   - When stdin is a TTY (or /dev/tty is openable), runs `rendermill setup`
 #     so the user pastes their API keys and learns the cost tradeoffs.
-#   - Non-interactive runs print a "run `video-claw setup` next" hint and exit clean.
+#   - Non-interactive runs print a "run `rendermill setup` next" hint and exit clean.
 
 set -euo pipefail
 
-REPO_URL="https://github.com/amirfish1/video-claw"
+REPO_URL="https://github.com/MediaPlural/rendermill"
 PIPX_TARGET="git+${REPO_URL}"
 MIN_PY_MAJOR=3
 MIN_PY_MINOR=10
@@ -77,7 +77,7 @@ require_pipx() {
 # Returns 0 if at least one Chromium-class browser exists.
 # CHROME_BIN env var wins; otherwise we prefer stable Chrome over Beta/Dev/Canary,
 # and Chrome family over Brave/Edge. Keep this order in sync with
-# video_claw/renderer_html.py:_find_chrome_binary().
+# rendermill/renderer_html.py:_find_chrome_binary().
 check_chrome() {
   if [ -n "${CHROME_BIN:-}" ] && [ -x "$CHROME_BIN" ]; then
     return 0
@@ -125,16 +125,16 @@ require_chrome() {
 do_install() {
   # We always pass --force for idempotency (re-running the installer should
   # bring you up to head). Tone the user-facing message accordingly: if pipx
-  # has no existing video-claw venv, this is a fresh install, not a "forced
+  # has no existing rendermill venv, this is a fresh install, not a "forced
   # reinstall"; if it does, frame it as a refresh rather than an override.
   local existing=""
   if command -v pipx >/dev/null 2>&1; then
-    existing="$(pipx list --short 2>/dev/null | awk '$1 == "video-claw" { print $1 }')"
+    existing="$(pipx list --short 2>/dev/null | awk '$1 == "rendermill" { print $1 }')"
   fi
   if [ -n "$existing" ]; then
-    note "found existing video-claw — refreshing to latest version..."
+    note "found existing rendermill — refreshing to latest version..."
   else
-    note "installing video-claw via pipx..."
+    note "installing rendermill via pipx..."
   fi
   pipx install --force "$PIPX_TARGET"
 }
@@ -204,7 +204,7 @@ prompt_yes_no_default_yes() {
   esac
 }
 
-# Offer to drop the Claude Code skill into ~/.claude/skills/video-claw/.
+# Offer to drop the Claude Code skill into ~/.claude/skills/rendermill/.
 # Only meaningful for Claude Code users — we detect that by the presence of
 # ~/.claude/. Non-Claude-Code users see nothing, so the installer stays clean
 # for them. Non-interactive runs print a single hint and exit.
@@ -216,33 +216,33 @@ maybe_install_skill() {
   fi
 
   if ! is_interactive; then
-    note "[skill] Claude Code skill not installed (run \`video-claw install-skill\` to enable)."
+    note "[skill] Claude Code skill not installed (run \`rendermill install-skill\` to enable)."
     return 0
   fi
 
-  if prompt_yes_no_default_yes "install Claude Code skill at ~/.claude/skills/video-claw?"; then
-    video-claw install-skill || {
-      err "video-claw install-skill failed; you can re-run it manually later."
+  if prompt_yes_no_default_yes "install Claude Code skill at ~/.claude/skills/rendermill?"; then
+    rendermill install-skill || {
+      err "rendermill install-skill failed; you can re-run it manually later."
       return 0
     }
   else
-    note "Run \`video-claw install-skill\` later to enable the Claude Code workflow."
+    note "Run \`rendermill install-skill\` later to enable the Claude Code workflow."
   fi
 }
 
 run_setup_wizard() {
   if ! is_interactive; then
     note "non-interactive shell detected; skipping the key wizard."
-    note "Run \`video-claw setup\` in your terminal to configure keys."
+    note "Run \`rendermill setup\` in your terminal to configure keys."
     return 0
   fi
-  note "launching interactive key wizard (video-claw setup)..."
+  note "launching interactive key wizard (rendermill setup)..."
   # If stdin isn't already a TTY (we're inside `curl | bash`), rewire stdin
   # from /dev/tty so input() in the wizard reads the user, not the script.
   if [ -t 0 ]; then
-    video-claw setup || true
+    rendermill setup || true
   else
-    video-claw setup < /dev/tty || true
+    rendermill setup < /dev/tty || true
   fi
 }
 
@@ -253,15 +253,15 @@ run_setup_wizard() {
 success_banner() {
   cat <<EOF
 
-video-claw is installed.
+rendermill is installed.
 
 Next steps:
-  1. video-claw setup            # configure keys (rerun anytime)
-  2. video-claw init my-vid      # scaffold a project
-  3. cd my-vid && video-claw render
+  1. rendermill setup            # configure keys (rerun anytime)
+  2. rendermill init my-vid      # scaffold a project
+  3. cd my-vid && rendermill render
 
 Or, if you use Claude Code:
-  video-claw install-skill       # ship the skill into ~/.claude/skills/
+  rendermill install-skill       # ship the skill into ~/.claude/skills/
   Then say in any session: "make me a 30-second video about X".
 
 Docs: ${REPO_URL}
@@ -286,9 +286,9 @@ main() {
   do_install
 
   # PATH check: pipx default install location is ~/.local/bin
-  if ! command -v video-claw >/dev/null 2>&1; then
-    err "video-claw installed but not on PATH."
-    err "  Run 'pipx ensurepath' and open a new terminal, then run 'video-claw setup'."
+  if ! command -v rendermill >/dev/null 2>&1; then
+    err "rendermill installed but not on PATH."
+    err "  Run 'pipx ensurepath' and open a new terminal, then run 'rendermill setup'."
     exit 1
   fi
 

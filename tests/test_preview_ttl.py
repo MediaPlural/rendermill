@@ -9,7 +9,7 @@ Covers:
     keeps the port serving past the parent's lifetime
 
 The behavioral test only runs if `python` can launch `python -m
-video_claw.preview_server` against the source tree (i.e. local dev). It
+rendermill.preview_server` against the source tree (i.e. local dev). It
 shells out so the parent test process doesn't share the child's fate.
 """
 from __future__ import annotations
@@ -29,12 +29,12 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 # ---------- import-level smoke ----------
 
 def test_imports():
-    import video_claw  # noqa: F401
-    from video_claw import preview, preview_server, cli, core  # noqa: F401
+    import rendermill  # noqa: F401
+    from rendermill import preview, preview_server, cli, core  # noqa: F401
 
 
 def test_resolve_ttl_explicit():
-    from video_claw.preview import resolve_ttl
+    from rendermill.preview import resolve_ttl
     assert resolve_ttl(0) == 0
     assert resolve_ttl(120) == 120
     # Negative collapses to 0 as defence-in-depth.
@@ -42,7 +42,7 @@ def test_resolve_ttl_explicit():
 
 
 def test_resolve_ttl_env(monkeypatch):
-    from video_claw.preview import resolve_ttl
+    from rendermill.preview import resolve_ttl
     monkeypatch.setenv("VIDEO_CLAW_PREVIEW_TTL", "777")
     assert resolve_ttl(None) == 777
     # Bogus env vars get ignored and we fall back to default.
@@ -52,7 +52,7 @@ def test_resolve_ttl_env(monkeypatch):
 
 
 def test_resolve_ttl_explicit_beats_env(monkeypatch):
-    from video_claw.preview import resolve_ttl
+    from rendermill.preview import resolve_ttl
     monkeypatch.setenv("VIDEO_CLAW_PREVIEW_TTL", "777")
     assert resolve_ttl(10) == 10
 
@@ -60,21 +60,21 @@ def test_resolve_ttl_explicit_beats_env(monkeypatch):
 # ---------- CLI argparse plumbing ----------
 
 def test_cli_render_accepts_preview_ttl():
-    from video_claw.cli import build_parser
+    from rendermill.cli import build_parser
     parser = build_parser()
     ns = parser.parse_args(["render", ".", "--preview-ttl", "120"])
     assert ns.preview_ttl == 120
 
 
 def test_cli_preview_accepts_preview_ttl():
-    from video_claw.cli import build_parser
+    from rendermill.cli import build_parser
     parser = build_parser()
     ns = parser.parse_args(["preview", ".", "--preview-ttl", "30"])
     assert ns.preview_ttl == 30
 
 
 def test_cli_rejects_negative_preview_ttl():
-    from video_claw.cli import _validate_preview_ttl
+    from rendermill.cli import _validate_preview_ttl
     with pytest.raises(SystemExit):
         _validate_preview_ttl(-1)
 
@@ -112,7 +112,7 @@ def test_detached_child_survives_parent_and_serves(tmp_path):
     env["PYTHONPATH"] = str(REPO_ROOT) + os.pathsep + env.get("PYTHONPATH", "")
 
     proc = subprocess.Popen(
-        [sys.executable, "-m", "video_claw.preview_server",
+        [sys.executable, "-m", "rendermill.preview_server",
          "--dir", str(tmp_path), "--port", str(port), "--ttl", "5"],
         stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
@@ -146,7 +146,7 @@ def test_detached_child_survives_parent_and_serves(tmp_path):
 
 def test_ttl_zero_uses_legacy_in_process_path(monkeypatch, tmp_path):
     """With preview_ttl=0, no detached child should be spawned."""
-    from video_claw import preview as preview_mod
+    from rendermill import preview as preview_mod
 
     spawned = []
 

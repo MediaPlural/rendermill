@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 def test_static_avatar_overlay_cmd_loops_still_image():
-    from video_claw.ffmpeg_video import _static_avatar_overlay_cmd
+    from rendermill.ffmpeg_video import _static_avatar_overlay_cmd
     cmd = _static_avatar_overlay_cmd(
         Path("slide.png"), Path("badge.png"), Path("a.m4a"),
         Path("out.mp4"), ox=100, oy=200, pad_dur=3.0,
@@ -17,29 +17,29 @@ def test_static_avatar_overlay_cmd_loops_still_image():
 
 
 def test_select_avatar_scope_all():
-    from video_claw.core import _select_avatar_badge
+    from rendermill.core import _select_avatar_badge
     assert _select_avatar_badge("BADGE", "all", 3, {}) == "BADGE"
 
 
 def test_select_avatar_scope_intro_only_first():
-    from video_claw.core import _select_avatar_badge
+    from rendermill.core import _select_avatar_badge
     assert _select_avatar_badge("BADGE", "intro", 0, {}) == "BADGE"
     assert _select_avatar_badge("BADGE", "intro", 1, {}) is None
 
 
 def test_select_avatar_scope_flagged():
-    from video_claw.core import _select_avatar_badge
+    from rendermill.core import _select_avatar_badge
     assert _select_avatar_badge("BADGE", "flagged", 2, {"avatar": True}) == "BADGE"
     assert _select_avatar_badge("BADGE", "flagged", 2, {}) is None
 
 
 def test_select_avatar_no_badge():
-    from video_claw.core import _select_avatar_badge
+    from rendermill.core import _select_avatar_badge
     assert _select_avatar_badge(None, "all", 0, {}) is None
 
 
 def test_prompt_user_prints_cost_note(tmp_path, capsys):
-    from video_claw.preview import prompt_user
+    from rendermill.preview import prompt_user
     out = tmp_path / "out"; out.mkdir()
     slides = [{"type": "html", "html": "a.html", "narration": "hi"}]
     ok = prompt_user(out, slides, "horizontal", auto_yes=True,

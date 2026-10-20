@@ -1,7 +1,7 @@
 """Text-to-speech providers: ElevenLabs (primary), Deepgram, local (free).
 
 Local = the OS's built-in offline voice — macOS `say`, Windows SAPI, or
-Linux espeak-ng — dispatched by `video_claw.tts.local`.
+Linux espeak-ng — dispatched by `rendermill.tts.local`.
 
 Each `make_audio_<provider>` takes `(text, idx, *, workdir, cache, tts_cfg)`
 and returns `(m4a_path, duration_seconds)`. ElevenLabs additionally writes
@@ -80,7 +80,7 @@ def make_audio_elevenlabs(text: str, idx: int, *, workdir: Path,
     if not api_key:
         raise RuntimeError(
             "ElevenLabs requested but no ELEVENLABS_API_KEY found.\n"
-            "Run: video-claw keys set EL=<your-key>"
+            "Run: rendermill keys set EL=<your-key>"
         )
 
     voice_id = tts_cfg.get("voice_id", DEFAULT_TTS["voice_id"])
@@ -149,7 +149,7 @@ def make_audio_deepgram(text: str, idx: int, *, workdir: Path,
     if not api_key:
         raise RuntimeError(
             "Deepgram requested but no DEEPGRAM_API_KEY found.\n"
-            "Run: video-claw keys set DG=<your-key>"
+            "Run: rendermill keys set DG=<your-key>"
         )
     voice = tts_cfg.get("deepgram_voice", DEFAULT_TTS["deepgram_voice"])
     rate = float(tts_cfg.get("speaking_rate", DEFAULT_TTS["speaking_rate"]))
@@ -193,7 +193,7 @@ def make_audio_local(text: str, idx: int, *, workdir: Path,
     """Local (free, offline) TTS -> wav -> m4a. Dispatches per-OS to macOS
     `say`, Windows SAPI, or Linux espeak-ng. No word-level alignment.
 
-    The heavy lifting lives in `video_claw.tts.local.synthesize` so it can be
+    The heavy lifting lives in `rendermill.tts.local.synthesize` so it can be
     imported directly from tests / external code.
     """
     voice = (tts_cfg.get("local_voice") or tts_cfg.get("macos_voice")

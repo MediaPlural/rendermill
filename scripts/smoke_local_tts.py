@@ -7,7 +7,7 @@ Live-tests the rendermill local TTS backend on whatever OS this runs on:
   - Linux   -> espeak-ng    (tts/linux.py)
 
 Loads the real backend module from a path (no package import, so there's no
-video_claw dependency chain), synthesizes a short phrase to a WAV, and
+rendermill dependency chain), synthesizes a short phrase to a WAV, and
 verifies the output is a valid, non-empty WAVE file.
 
 Exit codes: 0 = PASS, 1 = FAIL (backend ran but produced no valid WAV),
@@ -49,7 +49,7 @@ def is_wav(path: Path) -> bool:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Cross-platform local TTS smoke probe")
     ap.add_argument("--tts-dir", type=Path, required=True,
-                    help="path to video_claw/tts/ (contains macos.py, windows.py, linux.py)")
+                    help="path to rendermill/tts/ (contains macos.py, windows.py, linux.py)")
     ap.add_argument("--voice", default="auto")
     args = ap.parse_args()
 

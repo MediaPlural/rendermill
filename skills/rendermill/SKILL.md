@@ -20,7 +20,7 @@ machine-checked quality gates.
 
 The CLI is installed in the repo venv: `$MILL/.venv/bin/rendermill`
 (falls back to `rendermill` on PATH). The full operator manual is the
-bundled Claude skill at `$MILL/video_claw/skill_data/rendermill/SKILL.md`
+bundled Claude skill at `$MILL/rendermill/skill_data/rendermill/SKILL.md`
 — read it before your first render of the day.
 
 ## The fast loop (what 90% of requests reduce to)
@@ -49,8 +49,8 @@ bundled Claude skill at `$MILL/video_claw/skill_data/rendermill/SKILL.md`
 - **Free / $0:** `CONFIG["mode"] = "free"` — local TTS (say/SAPI/espeak-ng), no paid APIs.
   Default choice for drafts and gate rehearsals.
 - **Engine payload (§5.1, stubbed):** load Stage 4/5 JSON with
-  `python -c "from video_claw.payload import load_payload; ..."` — the
-  contract is documented in `$MILL/video_claw/payload.py`.
+  `python -c "from rendermill.payload import load_payload; ..."` — the
+  contract is documented in `$MILL/rendermill/payload.py`.
 
 ## Laws
 
@@ -59,7 +59,7 @@ bundled Claude skill at `$MILL/video_claw/skill_data/rendermill/SKILL.md`
 - **Spend ceiling (the spend law):** paid TTS only through batch mode
   or an explicit ceiling; the yellow-gate halt needs human approval.
 - **No credentials in the repo**; keys live in `~/.config/rendermill/keys.env`.
-- **Provenance:** MIT fork of video-claw; keep LICENSE + attribution.
+- **Provenance:** MIT fork of rendermill; keep LICENSE + attribution.
 - **Output lands in the project's out/ dir or the engine renders/ dir.**
   Never write into the repo itself.
 - **No em-dashes in narration or slide text.**
@@ -78,5 +78,5 @@ ls clips/                      # pre-timestamped segments exist
 
 - Spec: `the design spec` §5.1-5.10
 - Backdrop library: `~/.config/rendermill/backdrops`
-- Full manual: `$MILL/video_claw/skill_data/rendermill/SKILL.md`
+- Full manual: `$MILL/rendermill/skill_data/rendermill/SKILL.md`
 - Test suite: `cd $MILL && .venv/bin/python -m pytest tests/ -q`

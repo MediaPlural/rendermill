@@ -8,21 +8,21 @@ import pytest
 
 
 def _payload_file(tmp_path, data=None):
-    from video_claw.payload import DEMO_PAYLOAD
+    from rendermill.payload import DEMO_PAYLOAD
     p = tmp_path / "payload.json"
     p.write_text(json.dumps(data or DEMO_PAYLOAD))
     return p
 
 
 def test_validate_requires_candidates(tmp_path):
-    from video_claw.payload import load_payload, PayloadError
+    from rendermill.payload import load_payload, PayloadError
     p = _payload_file(tmp_path, {"placement_format": "x"})
     with pytest.raises(PayloadError, match="ranked_candidates"):
         load_payload(p)
 
 
 def test_load_payload_builds_slides(tmp_path):
-    from video_claw.payload import load_payload
+    from rendermill.payload import load_payload
     out = load_payload(_payload_file(tmp_path))
     assert out["config"]["orientation"] == "short"
     roles = [s["role"] for s in out["slides"]]
@@ -33,7 +33,7 @@ def test_load_payload_builds_slides(tmp_path):
 
 
 def test_load_payload_short_form_fallback(tmp_path):
-    from video_claw.payload import load_payload
+    from rendermill.payload import load_payload
     data = {
         "placement_format": "video first-3s script + opening frame",
         "ranked_candidates": [{"rank": 1, "hook": "short hook"}],
@@ -44,5 +44,5 @@ def test_load_payload_short_form_fallback(tmp_path):
 
 
 def test_demo_payload_itself_validates():
-    from video_claw.payload import DEMO_PAYLOAD, validate_payload
+    from rendermill.payload import DEMO_PAYLOAD, validate_payload
     validate_payload(DEMO_PAYLOAD)  # the documented example always passes

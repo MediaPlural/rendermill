@@ -8,13 +8,13 @@ from __future__ import annotations
 
 
 def _project(tmp_path, tts_override, slides):
-    from video_claw.config import Project, DEFAULT_CONFIG, _deep_merge
+    from rendermill.config import Project, DEFAULT_CONFIG, _deep_merge
     cfg = _deep_merge(DEFAULT_CONFIG, {"tts": tts_override})
     return Project(project_dir=tmp_path, config=cfg, slides=slides)
 
 
 def _no_keys(monkeypatch):
-    from video_claw import keys as keys_mod
+    from rendermill import keys as keys_mod
     monkeypatch.setattr(keys_mod, "load_keys", lambda: {})
     monkeypatch.setattr(keys_mod, "get", lambda name: None)
     for k in ("ELEVENLABS_API_KEY", "DEEPGRAM_API_KEY", "FAL_API_KEY"):
@@ -22,7 +22,7 @@ def _no_keys(monkeypatch):
 
 
 def _patch_local_avail(monkeypatch, available):
-    from video_claw import tts
+    from rendermill import tts
     monkeypatch.setattr(tts, "_local", _FakeLocal(available))
 
 
@@ -35,7 +35,7 @@ class _FakeLocal:
 
 
 def test_auto_no_keys_local_available_ok(monkeypatch, tmp_path):
-    from video_claw import cli
+    from rendermill import cli
     _no_keys(monkeypatch)
     _patch_local_avail(monkeypatch, True)
     proj = _project(tmp_path, {"provider": "auto"}, [{"narration": "hi"}])
@@ -43,7 +43,7 @@ def test_auto_no_keys_local_available_ok(monkeypatch, tmp_path):
 
 
 def test_auto_no_keys_no_local_errors(monkeypatch, tmp_path):
-    from video_claw import cli
+    from rendermill import cli
     _no_keys(monkeypatch)
     _patch_local_avail(monkeypatch, False)
     proj = _project(tmp_path, {"provider": "auto"}, [{"narration": "hi"}])
@@ -52,7 +52,7 @@ def test_auto_no_keys_no_local_errors(monkeypatch, tmp_path):
 
 
 def test_explicit_elevenlabs_without_key_errors(monkeypatch, tmp_path):
-    from video_claw import cli
+    from rendermill import cli
     _no_keys(monkeypatch)
     proj = _project(tmp_path, {"provider": "elevenlabs"}, [{"narration": "hi"}])
     err = cli._ensure_keys_for(proj)
@@ -60,7 +60,7 @@ def test_explicit_elevenlabs_without_key_errors(monkeypatch, tmp_path):
 
 
 def test_lipsync_without_fal_warns_not_blocks(monkeypatch, tmp_path, capsys):
-    from video_claw import cli, keys as keys_mod
+    from rendermill import cli, keys as keys_mod
     monkeypatch.setattr(keys_mod, "load_keys", lambda: {})
     monkeypatch.setattr(keys_mod, "get",
                         lambda name: "x" if name == "ELEVENLABS_API_KEY" else None)

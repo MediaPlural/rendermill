@@ -34,7 +34,7 @@ def _make_m4a(path, duration_s=1.5):
 
 
 def test_backdrop_cmd_shape():
-    from video_claw.ffmpeg_video import _backdrop_slide_cmd
+    from rendermill.ffmpeg_video import _backdrop_slide_cmd
     cmd = _backdrop_slide_cmd("s.png", "bd.mp4", "n.m4a", "o.mp4", 1920, 1080, 3.2)
     joined_list = " ".join(cmd)
     assert "-stream_loop" in joined_list and "-1" in cmd
@@ -46,8 +46,8 @@ def test_backdrop_cmd_shape():
 
 def test_backdrop_slide_render_real(tmp_path):
     """§5.3: real ffmpeg — slide PNG over looping b-roll, audio concat."""
-    from video_claw.ffmpeg_video import make_slide_video
-    from video_claw.cache import Cache
+    from rendermill.ffmpeg_video import make_slide_video
+    from rendermill.cache import Cache
     png = _make_png(tmp_path / "slide.png")
     bd = _make_video(tmp_path / "broll.mp4", duration_s=2.0)
     m4a = _make_m4a(tmp_path / "narr.m4a", duration_s=3.0)
@@ -73,7 +73,7 @@ def test_backdrop_slide_render_real(tmp_path):
 
 def test_music_bed_mix_real(tmp_path):
     """§5.6: real ffmpeg amix — narration master + bed track."""
-    from video_claw.ffmpeg_video import mix_music_bed
+    from rendermill.ffmpeg_video import mix_music_bed
     master = _make_video(tmp_path / "master.mp4", duration_s=2.0)
     bed = _make_m4a(tmp_path / "bed.m4a", duration_s=1.0)  # shorter: loops
     out = tmp_path / "mixed.mp4"
@@ -87,7 +87,7 @@ def test_music_bed_mix_real(tmp_path):
 
 
 def test_music_bed_static_gain_real(tmp_path):
-    from video_claw.ffmpeg_video import mix_music_bed
+    from rendermill.ffmpeg_video import mix_music_bed
     master = _make_video(tmp_path / "m.mp4", duration_s=1.5)
     bed = _make_m4a(tmp_path / "b.m4a", duration_s=1.5)
     out = mix_music_bed(master, bed, tmp_path / "o.mp4", gain=0.2, ducking=0)
@@ -99,13 +99,13 @@ def test_music_bed_static_gain_real(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_estimate_free_mode_is_zero():
-    from video_claw.batch import estimate_project
+    from rendermill.batch import estimate_project
     rep = estimate_project([{"narration": "x" * 500}], {"mode": "free"})
     assert rep.est_usd == 0.0
 
 
 def test_estimate_local_is_zero(monkeypatch):
-    from video_claw import batch, tts, keys
+    from rendermill import batch, tts, keys
     monkeypatch.setattr(keys, "get", lambda name: None)
     monkeypatch.setattr(tts, "resolve_provider", lambda cfg: "local")
     rep = batch.estimate_project([{"narration": "x" * 500}], {})
@@ -113,7 +113,7 @@ def test_estimate_local_is_zero(monkeypatch):
 
 
 def test_estimate_elevenlabs_counts_chars(monkeypatch):
-    from video_claw import batch, tts
+    from rendermill import batch, tts
     monkeypatch.setattr(tts, "resolve_provider", lambda cfg: "elevenlabs")
     rep = batch.estimate_project(
         [{"narration": "x" * 1000}], {"tts": {"model": "eleven_v3"}})
@@ -121,7 +121,7 @@ def test_estimate_elevenlabs_counts_chars(monkeypatch):
 
 
 def test_ceiling_check_halts():
-    from video_claw.batch import check_ceiling, CeilingExceeded, CostReport
+    from rendermill.batch import check_ceiling, CeilingExceeded, CostReport
     rep = CostReport("proj", "elevenlabs", 1000, 0.10, 0.0, 0.0)
     check_ceiling(1.00, 0.85, rep)  # 0.95 <= 1.00: proceeds
     with pytest.raises(CeilingExceeded, match=r"yellow-gate"):
@@ -129,7 +129,7 @@ def test_ceiling_check_halts():
 
 
 def test_resolve_ceiling_order(monkeypatch):
-    from video_claw.batch import resolve_ceiling
+    from rendermill.batch import resolve_ceiling
     monkeypatch.delenv("RENDERMILL_SPEND_CEILING", raising=False)
     assert resolve_ceiling(None, None) == 1.00
     assert resolve_ceiling(5.0, None) == 5.0

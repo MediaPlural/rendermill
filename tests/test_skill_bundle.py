@@ -1,7 +1,7 @@
 """The bundled Claude Code skill must ship inside the installed wheel.
 
-If `pyproject.toml` stops shipping `video_claw/skill_data/**/*` as package data,
-`video-claw install-skill` breaks for everyone who pipx-installed from a wheel.
+If `pyproject.toml` stops shipping `rendermill/skill_data/**/*` as package data,
+`rendermill install-skill` breaks for everyone who pipx-installed from a wheel.
 These tests guard the bundle: SKILL.md and the references/ tree must be
 reachable via `importlib.resources` from the installed package.
 """
@@ -19,14 +19,14 @@ SKILL_NAME = "rendermill"
 
 def _bundle_root():
     """importlib.resources Traversable pointing at the bundled skill dir."""
-    return importlib.resources.files("video_claw") / "skill_data" / SKILL_NAME
+    return importlib.resources.files("rendermill") / "skill_data" / SKILL_NAME
 
 
 def test_skill_md_is_in_the_bundle():
     """SKILL.md must be importable as package data — this is the load-bearing file."""
     skill_md = _bundle_root() / "SKILL.md"
     assert skill_md.is_file(), (
-        f"SKILL.md not found in package data at video_claw/skill_data/{SKILL_NAME}/. "
+        f"SKILL.md not found in package data at rendermill/skill_data/{SKILL_NAME}/. "
         "Check pyproject.toml [tool.setuptools.package-data] includes skill_data/**/*."
     )
 
@@ -56,7 +56,7 @@ def test_references_dir_is_in_the_bundle():
 
 def test_install_skill_target_flag_overrides_destination(tmp_path):
     """--target PATH must redirect the install away from ~/.claude/skills/."""
-    from video_claw import cli
+    from rendermill import cli
 
     target = tmp_path / "alt-location"
     class _Args:
@@ -72,7 +72,7 @@ def test_install_skill_lays_down_files_to_a_target(tmp_path):
     """End-to-end: invoke the CLI handler and confirm SKILL.md + references/ land."""
     # Lazy import: importing cli triggers the whole package, which is fine but
     # not free, so we keep it scoped to this test.
-    from video_claw import cli
+    from rendermill import cli
 
     target = tmp_path / "skill-install-test"
 
@@ -95,7 +95,7 @@ def test_install_skill_lays_down_files_to_a_target(tmp_path):
 
 def test_install_skill_is_idempotent_on_rerun(tmp_path):
     """Running install-skill twice into the same dir must succeed without --force."""
-    from video_claw import cli
+    from rendermill import cli
 
     target = tmp_path / "skill-install-rerun"
     orig_target = cli.SKILL_TARGET
@@ -113,7 +113,7 @@ def test_install_skill_is_idempotent_on_rerun(tmp_path):
 
 def test_install_skill_refuses_foreign_files_without_force(tmp_path):
     """If the user has hand-edited / dropped extra files, refuse to clobber."""
-    from video_claw import cli
+    from rendermill import cli
 
     target = tmp_path / "skill-install-foreign"
     target.mkdir()

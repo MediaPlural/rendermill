@@ -1,9 +1,9 @@
 # Skills
 
-The video-claw Claude Code skill ships as a Python package resource.
+The rendermill Claude Code skill ships as a Python package resource.
 
-After `pipx install git+https://github.com/amirfish1/video-claw`, run
-`video-claw install-skill` once to register it into `~/.claude/skills/video-claw/`.
+After `pipx install git+https://github.com/MediaPlural/rendermill`, run
+`rendermill install-skill` once to register it into `~/.claude/skills/rendermill/`.
 
 Canonical source files live in the package at
-[`video_claw/skill_data/video-claw/`](../video_claw/skill_data/video-claw/).
+[`rendermill/skill_data/rendermill/`](../rendermill/skill_data/rendermill/).

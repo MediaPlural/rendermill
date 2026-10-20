@@ -24,12 +24,12 @@ IS_MACOS = platform.system() == "Darwin"
 
 def test_imports_everywhere():
     """The provider module must import even on Linux — we just refuse to run."""
-    from video_claw.tts import macos  # noqa: F401
-    from video_claw.tts.macos import synthesize, is_available  # noqa: F401
+    from rendermill.tts import macos  # noqa: F401
+    from rendermill.tts.macos import synthesize, is_available  # noqa: F401
 
 
 def test_is_available_matches_platform():
-    from video_claw.tts.macos import is_available
+    from rendermill.tts.macos import is_available
     if IS_MACOS:
         # macOS always ships `say`; if this fails the build env is broken.
         assert is_available() is True
@@ -39,7 +39,7 @@ def test_is_available_matches_platform():
 
 @pytest.mark.skipif(IS_MACOS, reason="non-macOS error path only meaningful off-Mac")
 def test_synthesize_errors_on_linux(tmp_path):
-    from video_claw.tts.macos import synthesize
+    from rendermill.tts.macos import synthesize
     with pytest.raises(RuntimeError, match="only works on macOS"):
         synthesize("hello", tmp_path / "out.wav")
 
@@ -51,7 +51,7 @@ def test_synthesize_errors_on_linux(tmp_path):
 @pytest.mark.skipif(not IS_MACOS, reason="say(1) only exists on macOS")
 def test_synthesize_writes_pcm_wav(tmp_path):
     """Speak a one-second narration and assert the file is parseable PCM."""
-    from video_claw.tts.macos import synthesize
+    from rendermill.tts.macos import synthesize
 
     out = tmp_path / "out.wav"
     synthesize("This is a one second narration test.", out)
@@ -76,8 +76,8 @@ def test_dispatch_via_make_audio(tmp_path):
 
     Confirms that the cache + m4a encode wiring works for the new provider.
     """
-    from video_claw import tts as tts_mod
-    from video_claw.cache import Cache
+    from rendermill import tts as tts_mod
+    from rendermill.cache import Cache
 
     workdir = tmp_path / "work"
     workdir.mkdir()
@@ -98,7 +98,7 @@ def test_dispatch_via_make_audio(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_list_voices_parses_premium_name(monkeypatch):
-    from video_claw.tts import macos
+    from rendermill.tts import macos
     import subprocess as sp
     sample = "Samantha           en_US    # Hello\nZoe (Premium)      en_US    # Hi\n"
 
@@ -112,14 +112,14 @@ def test_list_voices_parses_premium_name(monkeypatch):
 
 
 def test_resolve_voice_substring_match(monkeypatch):
-    from video_claw.tts import macos
+    from rendermill.tts import macos
     monkeypatch.setattr(macos, "_list_installed_voices",
                         lambda b: ["Samantha", "Zoe (Premium)"])
     assert macos._resolve_voice("Zoe", "say") == "Zoe (Premium)"
 
 
 def test_resolve_voice_falls_back_to_samantha(monkeypatch, capsys):
-    from video_claw.tts import macos
+    from rendermill.tts import macos
     monkeypatch.setattr(macos, "_list_installed_voices", lambda b: ["Samantha"])
     assert macos._resolve_voice("Zoe (Premium)", "say") == "Samantha"
     assert "Falling back to Samantha" in capsys.readouterr().out
@@ -130,7 +130,7 @@ def test_resolve_voice_falls_back_to_samantha(monkeypatch, capsys):
 # ---------------------------------------------------------------------------
 
 def test_voice_records_capture_locale_and_name(monkeypatch):
-    from video_claw.tts import macos
+    from rendermill.tts import macos
     import subprocess as sp
     sample = (
         "Samantha            en_US    # Hi\n"
@@ -150,7 +150,7 @@ def test_voice_records_capture_locale_and_name(monkeypatch):
 
 
 def test_best_voice_prefers_premium_english(monkeypatch):
-    from video_claw.tts import macos
+    from rendermill.tts import macos
     monkeypatch.setattr(macos, "_installed_voice_records", lambda b: [
         ("Samantha", "en_US"),
         ("Daniel (Enhanced)", "en_GB"),
@@ -161,7 +161,7 @@ def test_best_voice_prefers_premium_english(monkeypatch):
 
 
 def test_best_voice_basic_only_falls_back_to_samantha(monkeypatch, capsys):
-    from video_claw.tts import macos
+    from rendermill.tts import macos
     macos._warned_basic_only = False
     monkeypatch.setattr(macos, "_installed_voice_records", lambda b: [
         ("Alex", "en_US"), ("Samantha", "en_US")])

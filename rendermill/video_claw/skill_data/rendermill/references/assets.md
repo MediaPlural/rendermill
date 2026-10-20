@@ -133,12 +133,12 @@ the next slide needs imagery to compensate.
 
 ## Misc gotchas
 
-- **pipx editable installs.** If video-claw is installed via pipx in
-  editable mode (`pipx install -e ~/path/to/video-claw`), the venv's
-  `site-packages/video_claw/` is a DEAD copy. The actual loaded code
+- **pipx editable installs.** If rendermill is installed via pipx in
+  editable mode (`pipx install -e ~/path/to/rendermill`), the venv's
+  `site-packages/rendermill/` is a DEAD copy. The actual loaded code
   lives at the editable source path. Confirm with:
   ```bash
-  $(which video-claw)... -c "import video_claw; print(video_claw.__file__)"
+  $(which rendermill)... -c "import rendermill; print(rendermill.__file__)"
   ```
   before editing source files. Or use the `fetch-asset` CLI (Layer 3)
   which abstracts this away.

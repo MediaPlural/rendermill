@@ -6,7 +6,7 @@ description: Use when the user wants to produce a narrated slide video (explaine
 # Making a narrated video
 
 This skill drives the `rendermill` package (the render pipeline; MIT
-fork of video-claw, internal module path `video_claw/`). The user describes
+fork of rendermill, internal module path `rendermill/`). The user describes
 what they want. You write the slides and narration. The mill ships the MP4,
 plus pre-timestamped clip segments and a render report.
 
@@ -49,7 +49,7 @@ an SRT sidecar by default. `imageio-ffmpeg` carries a libass-enabled binary.
 
 ## The rendermill upgrades (spec §5)
 
-This fork adds, on top of upstream video-claw:
+This fork adds, on top of upstream rendermill:
 
 - **§5.3 animated backdrops.** Per-slide `backdrop: "<path>.mp4"` fuses the
   slide PNG over looping deterministic simulation b-roll (library at
@@ -73,7 +73,7 @@ This fork adds, on top of upstream video-claw:
 - **§5.5 voice lane.** Default TTS voice is the default voice
   (`voice_id 9E7SCjnWJcKqJn9TkRLX`, `eleven_v3` pinned).
 - **§5.1 engine payload.** Programmatic input from Stage 4/5: see
-  `video_claw/payload.py` for the documented contract + loader.
+  `rendermill/payload.py` for the documented contract + loader.
 
 ## API keys
 
@@ -323,7 +323,7 @@ See `references/troubleshooting.md` for the full failure-mode catalog.
 
 - Spec: `marketing/engine/VIDEO-RENDER-BACKEND-SPEC-2026-10-02.md` §5
 - Package source: this repo (MIT fork of
-  https://github.com/amirfish1/video-claw; attribution preserved)
+  https://github.com/MediaPlural/rendermill; attribution preserved)
 - CLI help: `rendermill --help`, `rendermill <subcommand> --help`
 - Design tokens and layout patterns: `references/style.md`
 - Asset sourcing catalog: `references/assets.md`

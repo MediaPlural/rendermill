@@ -200,7 +200,7 @@ def _open_browser(url: str) -> None:
 
 
 def _spawn_detached_server(out_dir: Path, port: int, ttl: int) -> Optional[subprocess.Popen]:
-    """Fork a detached `python -m video_claw.preview_server` that owns the socket.
+    """Fork a detached `python -m rendermill.preview_server` that owns the socket.
 
     Returns the Popen handle (mostly for tests). The child is fully detached via
     `start_new_session=True`; closing the parent terminal will not reap it.
@@ -208,7 +208,7 @@ def _spawn_detached_server(out_dir: Path, port: int, ttl: int) -> Optional[subpr
     in-process server lifetime.
     """
     cmd = [
-        sys.executable, "-m", "video_claw.preview_server",
+        sys.executable, "-m", "rendermill.preview_server",
         "--dir", str(out_dir),
         "--port", str(port),
         "--ttl", str(ttl),

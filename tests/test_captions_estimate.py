@@ -3,7 +3,7 @@ from __future__ import annotations
 
 
 def test_estimated_captions_monotonic_and_span():
-    from video_claw.captions import build_estimated_srt_for_slide
+    from rendermill.captions import build_estimated_srt_for_slide
     text = "one two three four five six, seven eight nine ten."
     entries = build_estimated_srt_for_slide(text, offset_s=5.0, duration=10.0)
     assert entries, "should produce at least one chunk"
@@ -19,6 +19,6 @@ def test_estimated_captions_monotonic_and_span():
 
 
 def test_estimated_captions_empty_or_zero_duration():
-    from video_claw.captions import build_estimated_srt_for_slide
+    from rendermill.captions import build_estimated_srt_for_slide
     assert build_estimated_srt_for_slide("", 0.0, 10.0) == []
     assert build_estimated_srt_for_slide("hi there", 0.0, 0.0) == []

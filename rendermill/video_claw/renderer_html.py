@@ -92,7 +92,7 @@ def render_html_to_png(html_path: Path, png_path: Path, width: int, height: int)
             "Couldn't find a Chrome/Chromium binary to render HTML.\n"
             "On macOS, install Google Chrome from https://www.google.com/chrome/.\n"
             "On Linux, install `chromium` or `google-chrome` from your package manager.\n"
-            "Or point at an existing binary: CHROME_BIN=/path/to/chrome video-claw render"
+            "Or point at an existing binary: CHROME_BIN=/path/to/chrome rendermill render"
         )
 
     html_path = html_path.resolve()

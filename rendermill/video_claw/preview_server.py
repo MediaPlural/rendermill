@@ -4,11 +4,11 @@ Invoked as a child process by `preview.py` so the URL stays clickable even after
 the parent CLI returns. Uses only stdlib so we don't grow the dependency surface.
 
 Run directly:
-    python -m video_claw.preview_server --dir /path/to/out --port 53012 --ttl 3600
+    python -m rendermill.preview_server --dir /path/to/out --port 53012 --ttl 3600
 
 The child:
   * Detaches from the controlling terminal (`os.setsid`).
-  * Redirects stdout/stderr to ~/.cache/video-claw/preview-<port>.log.
+  * Redirects stdout/stderr to ~/.cache/rendermill/preview-<port>.log.
   * Serves the directory until the TTL expires, then exits.
   * Logs a final line on shutdown so the log file tells the story.
 """
@@ -31,7 +31,7 @@ class _QuietHandler(http.server.SimpleHTTPRequestHandler):
 
 def _cache_log_dir() -> Path:
     base = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
-    d = Path(base) / "video-claw"
+    d = Path(base) / "rendermill"
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -88,7 +88,7 @@ def serve(directory: Path, port: int, ttl: int) -> int:
 
 
 def main(argv=None) -> int:
-    p = argparse.ArgumentParser(prog="video_claw.preview_server")
+    p = argparse.ArgumentParser(prog="rendermill.preview_server")
     p.add_argument("--dir", required=True, help="Directory to serve.")
     p.add_argument("--port", type=int, required=True, help="Port to bind on 127.0.0.1.")
     p.add_argument("--ttl", type=int, required=True, help="Seconds to keep the server up.")

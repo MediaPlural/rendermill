@@ -8,7 +8,7 @@ Stock Homebrew Python 3.12+ blocks system-wide pip installs (PEP 668). Use
 pipx (which manages its own venv):
 
 ```
-pipx install git+https://github.com/amirfish1/video-claw
+pipx install git+https://github.com/MediaPlural/rendermill
 ```
 
 If pipx isn't installed: `brew install pipx`.
@@ -18,14 +18,14 @@ Or use a venv:
 ```
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install git+https://github.com/amirfish1/video-claw
+python3 -m pip install git+https://github.com/MediaPlural/rendermill
 ```
 
-### `video-claw: command not found` after pip install
+### `rendermill: command not found` after pip install
 
 The CLI was installed to a venv that isn't on PATH. With pipx, `pipx ensurepath`
 fixes this. With plain pip in a venv, source `.venv/bin/activate` before
-running `video-claw`.
+running `rendermill`.
 
 ### "Couldn't find a Chrome/Chromium binary"
 
@@ -33,11 +33,11 @@ The renderer needs a Chromium-class browser to screenshot HTML.
 
 - **macOS:** install Google Chrome from https://www.google.com/chrome/.
 - **Linux:** `apt install chromium` or `apt install google-chrome-stable`.
-- **Existing binary somewhere odd:** `CHROME_BIN=/path/to/chrome video-claw render`.
+- **Existing binary somewhere odd:** `CHROME_BIN=/path/to/chrome rendermill render`.
 
 Playwright is not required. If you already ran `playwright install chromium`
 in some other project, the package will find that binary as a last resort,
-but installing Playwright just for video-claw is overkill.
+but installing Playwright just for rendermill is overkill.
 
 ## Keys
 
@@ -47,7 +47,7 @@ You need an ElevenLabs key for the default TTS provider. Get one at
 https://elevenlabs.io/app/settings/api-keys, then:
 
 ```
-video-claw keys set EL=sk_xxx
+rendermill keys set EL=sk_xxx
 ```
 
 ### `keys test` shows `[opt] FAL_API_KEY: not set (optional)`
@@ -71,7 +71,7 @@ lacks libass entirely.
 Fix: install `imageio-ffmpeg` (ships a libass-enabled static ffmpeg):
 
 ```
-pipx inject video-claw imageio-ffmpeg
+pipx inject rendermill imageio-ffmpeg
 ```
 
 (or `pip install imageio-ffmpeg` inside your venv).
@@ -116,7 +116,7 @@ re-runs on narration changes).
 To bypass every cache for one run:
 
 ```
-FORCE_REGEN=1 video-claw render
+FORCE_REGEN=1 rendermill render
 ```
 
 To wipe a single project's cache:

@@ -1,6 +1,5 @@
 # Rendermill
 
-> **Provenance:** MIT fork of [video-claw](https://github.com/amirfish1/video-claw) by Amir Fish (upstream preserved as git remote; LICENSE intact). Renamed to Rendermill 2026-10-04 per the naming convention — owned outright post-fork. Internal module path `video_claw/` retained for mechanical compatibility.
 
 Narrated slide videos for people who would rather describe a video than
 storyboard one. You tell the mill what you want. Your agent writes the
@@ -15,13 +14,13 @@ Runs on macOS, Linux, and Windows.
 
 ```
 # One command: install, then walk you through API key setup.
-curl -fsSL https://raw.githubusercontent.com/amirfish1/video-claw/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/MediaPlural/rendermill/main/install.sh | bash
 ```
 
 Or the manual two-step:
 
 ```
-pipx install git+https://github.com/amirfish1/video-claw
+pipx install git+https://github.com/MediaPlural/rendermill
 rendermill setup            # interactive key wizard with cost notes
 rendermill install-skill    # optional: register the Claude Code skill
 ```
@@ -42,7 +41,7 @@ Shorts/TikTok/Reels". No slash command, no remembered syntax.
 
 https://github.com/user-attachments/assets/180d77f3-e847-4e39-901c-bddccbed25ad
 
-<sub>(also at <a href="https://raw.githubusercontent.com/amirfish1/video-claw/main/docs/demo.mp4"><code>docs/demo.mp4</code></a> in the repo)</sub>
+<sub>(also at <a href="https://raw.githubusercontent.com/MediaPlural/rendermill/main/docs/demo.mp4"><code>docs/demo.mp4</code></a> in the repo)</sub>
 
 ## What you get
 
@@ -88,7 +87,7 @@ https://github.com/user-attachments/assets/180d77f3-e847-4e39-901c-bddccbed25ad
 - **Hermes skill port (§5.8).** `bash install-skill.sh` in the repo root
   installs `skills/rendermill/` into `~/.hermes/skills/rendermill`
   (and refreshes the Claude Code copy when present).
-- **Engine payload mode (§5.1, stubbed).** `video_claw/payload.py`
+- **Engine payload mode (§5.1, stubbed).** `rendermill/payload.py`
   documents the Stage 4/5 JSON contract and loads it into slides; the
   producer side lands when the first real payload exists.
 
@@ -119,7 +118,7 @@ anything in the project that would otherwise spend money:
 Uses your OS's built-in voice — macOS `say`, Windows SAPI, or Linux espeak-ng (`apt install espeak-ng`).
 
 Verify your OS's local voice with the cross-platform smoke probe:
-`python scripts/smoke_local_tts.py --tts-dir video_claw/tts`
+`python scripts/smoke_local_tts.py --tts-dir rendermill/tts`
 
 **Or just ask Claude.** Say *"make me a free video about X"* (or "$0", "no
 budget") and the skill sets `mode: "free"` for you — no file editing. You'll
@@ -131,12 +130,12 @@ rendered with no API keys:
 
 https://github.com/user-attachments/assets/f0f2a0b6-debb-46a8-8010-bd74d10eab52
 
-<sub>(also at <a href="https://raw.githubusercontent.com/amirfish1/video-claw/main/docs/free-mode-demo.mp4"><code>docs/free-mode-demo.mp4</code></a> in the repo)</sub>
+<sub>(also at <a href="https://raw.githubusercontent.com/MediaPlural/rendermill/main/docs/free-mode-demo.mp4"><code>docs/free-mode-demo.mp4</code></a> in the repo)</sub>
 
 ## Install
 
 ```
-pipx install git+https://github.com/amirfish1/video-claw
+pipx install git+https://github.com/MediaPlural/rendermill
 rendermill install-skill
 ```
 
@@ -152,7 +151,7 @@ install-skill` to pick up the latest SKILL.md.
 ```
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install git+https://github.com/amirfish1/video-claw
+python3 -m pip install git+https://github.com/MediaPlural/rendermill
 rendermill install-skill
 ```
 

@@ -9,7 +9,7 @@ def _write_project(dir_: Path, config_src: str, slides_src: str) -> Path:
 
 
 def test_free_mode_forces_local_and_strips_lipsync(tmp_path):
-    from video_claw import config as cfg_mod
+    from rendermill import config as cfg_mod
     _write_project(
         tmp_path,
         '{"mode": "free", "tts": {"provider": "elevenlabs"}}',
@@ -25,7 +25,7 @@ def test_free_mode_forces_local_and_strips_lipsync(tmp_path):
 
 
 def test_free_mode_respects_custom_voice(tmp_path):
-    from video_claw import config as cfg_mod
+    from rendermill import config as cfg_mod
     _write_project(
         tmp_path,
         '{"mode": "free", "tts": {"macos_voice": "Samantha"}}',
@@ -36,7 +36,7 @@ def test_free_mode_respects_custom_voice(tmp_path):
 
 
 def test_non_free_mode_untouched(tmp_path):
-    from video_claw import config as cfg_mod
+    from rendermill import config as cfg_mod
     _write_project(
         tmp_path,
         '{"tts": {"provider": "elevenlabs"}}',
@@ -49,7 +49,7 @@ def test_non_free_mode_untouched(tmp_path):
 
 
 def test_default_provider_and_captions(tmp_path):
-    from video_claw import config as cfg_mod
+    from rendermill import config as cfg_mod
     _write_project(
         tmp_path, '{}',
         '[{"type": "html", "html": "a.html", "narration": "hi"}]',

@@ -13,7 +13,7 @@ import pytest
 
 
 def test_dispatches_to_macos_on_darwin(monkeypatch, tmp_path):
-    from video_claw.tts import local, macos
+    from rendermill.tts import local, macos
     monkeypatch.setattr(platform, "system", lambda: "Darwin")
     monkeypatch.setattr(macos, "synthesize",
                         lambda text, out_path, *, voice="auto": Path(out_path))
@@ -22,7 +22,7 @@ def test_dispatches_to_macos_on_darwin(monkeypatch, tmp_path):
 
 
 def test_dispatches_to_windows_on_windows(monkeypatch, tmp_path):
-    from video_claw.tts import local, windows
+    from rendermill.tts import local, windows
     monkeypatch.setattr(platform, "system", lambda: "Windows")
     monkeypatch.setattr(windows, "synthesize",
                         lambda text, out_path, *, voice="auto": Path(out_path))
@@ -31,7 +31,7 @@ def test_dispatches_to_windows_on_windows(monkeypatch, tmp_path):
 
 
 def test_dispatches_to_linux_otherwise(monkeypatch, tmp_path):
-    from video_claw.tts import local, linux
+    from rendermill.tts import local, linux
     monkeypatch.setattr(platform, "system", lambda: "Linux")
     monkeypatch.setattr(linux, "synthesize",
                         lambda text, out_path, *, voice="auto": Path(out_path))
@@ -40,12 +40,12 @@ def test_dispatches_to_linux_otherwise(monkeypatch, tmp_path):
 
 
 def test_windows_ps_escape_single_quotes():
-    from video_claw.tts import windows
+    from rendermill.tts import windows
     assert windows._ps_escape("it's") == "it''s"
 
 
 def test_windows_command_shape_and_escaping(monkeypatch, tmp_path):
-    from video_claw.tts import windows
+    from rendermill.tts import windows
     monkeypatch.setattr(platform, "system", lambda: "Windows")
     captured = {}
     out_path = (tmp_path / "n.wav").resolve()
@@ -66,14 +66,14 @@ def test_windows_command_shape_and_escaping(monkeypatch, tmp_path):
 
 
 def test_windows_rejects_non_windows(monkeypatch, tmp_path):
-    from video_claw.tts import windows
+    from rendermill.tts import windows
     monkeypatch.setattr(platform, "system", lambda: "Darwin")
     with pytest.raises(RuntimeError, match="only runs on Windows"):
         windows.synthesize("hi", tmp_path / "n.wav")
 
 
 def test_linux_requires_espeak(monkeypatch, tmp_path):
-    from video_claw.tts import linux
+    from rendermill.tts import linux
     monkeypatch.setattr(platform, "system", lambda: "Linux")
     monkeypatch.setattr(linux.shutil, "which", lambda name: None)
     with pytest.raises(RuntimeError, match="espeak-ng"):
