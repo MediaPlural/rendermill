@@ -38,20 +38,42 @@ def fmt_ass_time(seconds: float) -> str:
     return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
 
 
+_SENTENCE_END = (".", "!", "?", "…")
+# Breaks that read as a natural pause when mid-sentence.
+_CLAUSE_BREAKS = (",", ";", ":", "—")
+
+
 def _group_into_chunks(
-    words: List[Tuple[float, float, str]]
+    words: List[Tuple[float, float, str]],
+    max_words: int = 8,
 ) -> List[List[Tuple[float, float, str]]]:
-    """Group timed words into ~7-word caption chunks, breaking on punctuation
-    at >=6 words and hard-breaking at >=9 words."""
+    """Group timed words into caption chunks that break at a natural boundary.
+
+    The old rule was "6+ words ending in . or , — else hard-break at 9",
+    which ignores semicolons, colons, em-dashes, question/exclamation marks,
+    and quotes. It split real sentences in half ("…but shipped / a broken
+    install") because a chunk boundary is only readable when it lands on
+    punctuation.
+
+    Breaks, strongest first: sentence end >=3 words, clause break >=5, hard
+    cap at max_words. A chunk also grows past the soft target only when the
+    next word would otherwise start a new sentence.
+    """
     chunks: List[List[Tuple[float, float, str]]] = []
     chunk: List[Tuple[float, float, str]] = []
     for w in words:
         chunk.append(w)
-        last_text = w[2]
-        if len(chunk) >= 6 and (last_text.endswith(",") or last_text.endswith(".")):
+        n = len(chunk)
+        text = w[2]
+        stripped = text.rstrip("\"'”’)]")
+
+        if n >= 3 and stripped.endswith(_SENTENCE_END):
             chunks.append(chunk)
             chunk = []
-        elif len(chunk) >= 9:
+        elif n >= 5 and stripped.endswith(_CLAUSE_BREAKS):
+            chunks.append(chunk)
+            chunk = []
+        elif n >= max_words:
             chunks.append(chunk)
             chunk = []
     if chunk:
@@ -166,15 +188,21 @@ def write_master_srt(entries: List[Entry], out_path: Path) -> None:
 
 
 def write_master_ass(entries: List[Entry], out_path: Path, *,
-                     width: int = 1920, height: int = 1080) -> None:
+                     width: int = 1920, height: int = 1080,
+                     style=None) -> None:
     """ASS subtitle file with styling baked in (avoids ffmpeg force_style quoting
-    headaches). MarginV biases captions to the lower-third; MarginR=560 keeps
-    text out of the bottom-right corner where the optional lipsync badge sits.
+    headaches).
+
+    `style` is a theme.CaptionStyle. When omitted, the canvas-appropriate
+    default is used, so a caller that never heard of themes still gets the
+    sensible vertical-vs-horizontal sizing it always got. Passing the theme's
+    style is what ties a burned caption to the deck it sits on: same accent,
+    same fg/outline pairing, same margins.
     """
-    margin_r = 560 if width >= 1600 else 80
-    margin_l = 120 if width >= 1600 else 60
-    margin_v = 80 if width >= height else 220
-    fontsize = 44 if width >= 1600 else 56
+    if style is None:
+        from .theme import caption_style_for
+        style = caption_style_for(None, width=width, height=height)
+    a = style.to_ass()
     header = f"""[Script Info]
 Title: rendermill captions
 ScriptType: v4.00+
@@ -185,7 +213,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,{fontsize},&H00F5F5F2,&H000000FF,&H001A1A1A,&HA0000000,1,0,0,0,100,100,0,0,1,3,1,2,{margin_l},{margin_r},{margin_v},1
+Style: Default,{a['Fontname']},{a['Fontsize']},{a['PrimaryColour']},&H000000FF,{a['OutlineColour']},&HA0000000,{a['Bold']},0,0,0,100,100,0,0,1,{a['Outline']},{a['Shadow']},2,{a['MarginL']},{a['MarginR']},{a['MarginV']},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text

@@ -1,0 +1,29 @@
+<!doctype html>
+<html><head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .old { border-left: 4px solid var(--strike); padding-left: 26px; margin-top: 30px; }
+  .new { border-left: 4px solid var(--good);   padding-left: 26px; margin-top: 30px; }
+  .tag { font-family: var(--font-mono); font-size: 19px; letter-spacing: 0.12em;
+         text-transform: uppercase; margin-bottom: 10px; }
+  .old .tag { color: var(--strike); }
+  .new .tag { color: var(--good); }
+  .lines { font-family: var(--font-mono); font-size: 24px; line-height: 1.6; color: var(--text); }
+</style>
+</head>
+<body class="canvas h">
+  <div class="eyebrow">Captions</div>
+  <h1>Break on punctuation, not word count.</h1>
+  <div class="old">
+    <div class="tag">Before &mdash; every 6 words</div>
+    <div class="lines">&ldquo;&hellip;but shipped <span class="strike">/ a broken</span> install&rdquo;</div>
+  </div>
+  <div class="new">
+    <div class="tag">After &mdash; sentence end, clause, hard cap</div>
+    <div class="lines">&ldquo;&hellip;but shipped <span class="good">a broken install</span>&rdquo;</div>
+  </div>
+  <p class="muted mono" style="margin-top:38px; font-size:22px;">
+    And if the burn fails, the render says so &mdash; it never ships a captioned-looking file with no captions.
+  </p>
+</body></html>

@@ -1,0 +1,76 @@
+/* rendermill shared deck theme: signal
+ *
+ * GENERATED FILE — regenerate with:
+ *   rendermill theme <project_dir>
+ * Or set `theme:` in slides.py and re-run that command. Do not hand-edit:
+ * your changes are replaced on the next write.
+ *
+ * Every slide links this file and inherits one palette, so a deck cannot
+ * drift into three different-looking slides. Slide-local CSS belongs in a
+ * <style> block inside the slide's own <head>.
+ */
+
+:root {
+  --bg:      #0d1117;
+  --panel:   #151b26;
+  --line:    #28303f;
+  --text:    #e9edf5;
+  --muted:   #8b96ab;
+  --accent:  #5b8def;
+  --strike:  #d97757;
+  --good:    #7cb37c;
+
+  --font-sans: -apple-system, "SF Pro Display", "SF Pro Text", Inter, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+
+  --h1-size: 64px;
+  --h2-size: 40px;
+  --p-size:  24px;
+  --eyebrow-size: 18px;
+
+  /* Caption tokens mirror the burned-in ASS style, so what you preview in
+     the browser matches what libass draws into the MP4. */
+  --caption-fg:   #e9edf5;
+  --caption-edge: #0a0e14;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Canvas sizing. Chrome screenshots at body.clientWidth x clientHeight. */
+body.canvas { display: flex; flex-direction: column; overflow: hidden; }
+body.canvas.h { width: 1920px; height: 1080px; padding: 64px 96px; }
+body.canvas.v { width: 1080px; height: 1920px; padding: 96px 72px; }
+
+.eyebrow {
+  font-size: var(--eyebrow-size); letter-spacing: 0.22em;
+  text-transform: uppercase; color: var(--accent);
+  font-weight: 700; margin-bottom: 14px;
+}
+
+h1 { font-size: var(--h1-size); line-height: 1.08; letter-spacing: -0.02em;
+      margin: 0 0 18px; font-weight: 800; }
+h2 { font-size: var(--h2-size); line-height: 1.15; letter-spacing: -0.01em;
+      margin: 0 0 14px; font-weight: 700; }
+p  { font-size: var(--p-size); line-height: 1.5; margin: 0 0 18px; }
+
+.accent { color: var(--accent); font-weight: 600; }
+.strike { color: var(--strike); font-weight: 600; }
+.good   { color: var(--good);   font-weight: 600; }
+.muted  { color: var(--muted); }
+
+.panel { background: var(--panel); border: 1px solid var(--line);
+          border-radius: 12px; }
+.mono { font-family: var(--font-mono); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}

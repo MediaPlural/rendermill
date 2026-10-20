@@ -21,7 +21,9 @@ nothing further renders. Config (`gates:` in slides.py) tunes or disables:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
+
+from .timeline import PAD_S, SlideSpan
 
 # §5.10 measured exemplar: 147 wpm narration, median 9 words/sentence.
 WPM = 147.0
@@ -34,8 +36,10 @@ DEFAULT_STAKES_MAX_S = 35.0     # EXPLAINER-80 template: stakes <=35s
 DEFAULT_STAKES_TARGET_S = 33.0   # §5.10 measured exemplar target
 DEFAULT_RECAP_MAX_S = 20.0      # EXPLAINER-80 template: recap <=20s
 
-# Inter-slide pad used by core.make_video (must stay in sync).
-SLIDE_PAD_S = 0.15
+# Inter-slide pad. Imported from timeline.py — the one definition. This
+# module used to declare its own copy with a "must stay in sync" comment,
+# which is exactly how captions and gate timing drifted apart.
+SLIDE_PAD_S = PAD_S
 
 
 class GateError(RuntimeError):
@@ -144,9 +148,20 @@ def hook_gate(slides: List[Dict[str, Any]], workdir: Path, first_dur_s: float,
 # ---------------------------------------------------------------------------
 
 def role_starts(slides: List[Dict[str, Any]],
-                durations: List[float]) -> List[Tuple[Dict[str, Any], float, float]]:
-    """(slide, start_s, dur_s) on the master timeline, using the same
-    cumulative + 0.15s pad arithmetic as core.make_video."""
+                durations: List[float],
+                spans: Optional[Sequence[SlideSpan]] = None
+                ) -> List[Tuple[Dict[str, Any], float, float]]:
+    """(slide, start_s, dur_s) on the master timeline.
+
+    Prefers `spans` — the MEASURED per-slide positions from
+    `timeline.build_timeline`, which probed the encoded slide MP4s. Falling
+    back to `durations` reproduces the old arithmetic (`sum(audio + PAD)`),
+    which is what the render itself used to assume; keep the fallback only
+    for callers that have no encoded media to measure (pure unit tests).
+    """
+    if spans is not None:
+        return [(s, span.start_s, span.audio_s)
+                for s, span in zip(slides, spans)]
     out: List[Tuple[Dict[str, Any], float, float]] = []
     t = 0.0
     for s, d in zip(slides, durations):
@@ -156,7 +171,8 @@ def role_starts(slides: List[Dict[str, Any]],
 
 
 def explainer_gate(slides: List[Dict[str, Any]], durations: List[float],
-                   gates_cfg: Optional[Dict[str, Any]]) -> List[str]:
+                   gates_cfg: Optional[Dict[str, Any]],
+                   spans: Optional[Sequence[SlideSpan]] = None) -> List[str]:
     """§5.10 machine checks. Raises GateError on a hard violation; returns
     report lines (warnings included) for the caller to print.
 
@@ -169,7 +185,7 @@ def explainer_gate(slides: List[Dict[str, Any]], durations: List[float],
     st_tgt = _cfg_float(gates_cfg, "stakes_target_s", DEFAULT_STAKES_TARGET_S)
     recap_max = _cfg_float(gates_cfg, "recap_max_s", DEFAULT_RECAP_MAX_S)
 
-    timeline = role_starts(slides, durations)
+    timeline = role_starts(slides, durations, spans)
     report: List[str] = []
     errs: List[str] = []
 

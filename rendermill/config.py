@@ -63,6 +63,11 @@ DEFAULT_CONFIG = {
         "resolution": "720p",
     },
     "mode": None,  # set to "free" for a $0 render (local OS TTS, static avatar, no paid APIs)
+    # Deck theme: a built-in name ("amber" | "field" | "signal" | "paper") or a
+    # dict overriding any token, e.g. {"name": "field", "accent": "#ffb347"}.
+    # One declaration styles every slide AND the burned-in captions, so a deck
+    # cannot drift into three different-looking slides.
+    "theme": None,
     "avatar": {
         "static": False,       # overlay a still circular avatar badge
         "scope": "all",        # "all" | "intro" | "flagged"
@@ -115,6 +120,13 @@ class Project:
         if not p.is_absolute():
             p = (self.project_dir / p).resolve()
         return p
+
+    @property
+    def theme(self) -> Any:
+        """The resolved deck theme. Raises ThemeError on a bad name/override at
+        load time rather than halfway through a render."""
+        from .theme import resolve
+        return resolve(self.config.get("theme"))
 
 
 def _deep_merge(base: dict, over: dict) -> dict:

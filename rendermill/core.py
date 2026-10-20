@@ -30,7 +30,14 @@ from . import gates as gates_mod
 from . import lipsync as lip_mod
 from . import preview as preview_mod
 from . import renderer_html
+from . import theme as theme_mod
+from . import timeline as timeline_mod
 from . import tts as tts_mod
+
+# The inter-slide pad lives in exactly one place (timeline.PAD_S) and is
+# imported from there by ffmpeg_video, gates and clips. It used to be copied
+# into four files, which is how captions and clip cuts drifted apart.
+PAD_S = timeline_mod.PAD_S
 
 
 DEFAULT_TTS = {
@@ -220,6 +227,7 @@ def make_video(slides: List[Dict[str, Any]], *,
                music_cfg: Optional[Dict[str, Any]] = None,
                gates_cfg: Optional[Dict[str, Any]] = None,
                clips_cfg: Optional[Dict[str, Any]] = None,
+               theme: Any = None,
                explainer_mode: bool = False,
                free: bool = False,
                auto_yes: bool = False,
@@ -240,6 +248,9 @@ def make_video(slides: List[Dict[str, Any]], *,
     captions_cfg = captions_cfg or {}
     music_cfg = music_cfg or {}
     gates_cfg = gates_cfg or {}
+    # Resolve the deck theme ONCE, up front, so a typo fails before any render
+    # work happens rather than after the whole deck has been encoded.
+    theme_name = theme_mod.resolve(theme).name
     if out_path is None:
         out_path = workdir / "video.mp4"
     out_path = Path(out_path).resolve()
@@ -290,9 +301,13 @@ def make_video(slides: List[Dict[str, Any]], *,
             print(f"  [avatar] static badge failed: {e}; continuing without it")
 
     parts: List[Path] = []
+    audios: List[Path] = []
     all_captions: List[Tuple[float, float, str]] = []
     durations: List[float] = []
-    cumulative = 0.0
+    rates: List[float] = []
+    # Narration offsets are filled in AFTER every slide is encoded and the
+    # encoded MP4s have been measured (see phase 3b). Captions used to be
+    # built inside this loop against an assumed offset.
     for idx, slide in enumerate(slides):
         narration = slide.get("narration") or ""
         if not narration.strip():
@@ -303,17 +318,12 @@ def make_video(slides: List[Dict[str, Any]], *,
         print(f"  slide {idx + 1}/{len(slides)}: TTS ({slide_tts['provider']}){rate_tag}")
         m4a, dur = tts_mod.make_audio(narration, idx, workdir=workdir, cache=cache, tts_cfg=slide_tts)
         durations.append(dur)
+        audios.append(m4a)
 
         # §5.2 hook gate: measured, authoritative, runs after slide-0 audio
         # only — a violation costs one slide of TTS, not a full render.
         if idx == 0:
             gates_mod.hook_gate(slides, workdir, dur, gates_cfg)
-
-        # Always caption: word-aligned for ElevenLabs, estimated otherwise.
-        all_captions.extend(_captions_for_slide(
-            resolved_provider, workdir, idx, narration,
-            offset_s=cumulative, dur=dur, rate=rate,
-            estimate=captions_cfg.get("estimate", True)))
 
         # Optional fal lipsync overlay.
         lipsync_circle = None
@@ -352,42 +362,76 @@ def make_video(slides: List[Dict[str, Any]], *,
             avatar_circle=slide_avatar,
         )
         parts.append(mp4)
-        cumulative += dur + 0.15
+        rates.append(rate)
         print(f"    -> {dur:.1f}s audio")
+
+    # Phase 3b: MEASURE the encoded slides and derive every downstream offset
+    # from those measurements. Captions, gate checks and clip cuts all key off
+    # this timeline, so guessing it made all three drift apart.
+    spans = timeline_mod.build_timeline(parts, audios, slides, pad_s=PAD_S)
+    measured_total = timeline_mod.timeline_duration(spans)
+    audio_total = sum(durations)
+    drift = timeline_mod.drift_report(spans, assumed_pad_s=PAD_S)
+    print(f"[timeline] measured master: {measured_total:.3f}s "
+          f"({len(spans)} slides, {measured_total - audio_total:+.3f}s pad)")
+    if drift["worst_drift_s"] > 0.001:
+        # The old arithmetic timeline would have been this far off. Surfaced so
+        # the fix is visible rather than asserted.
+        print(f"[timeline] arithmetic offsets would have drifted up to "
+              f"{drift['worst_drift_s'] * 1000:.0f}ms; using measured positions")
+
+    # Captions are built now, against measured start offsets.
+    if captions_cfg.get("estimate", True) or resolved_provider.startswith("eleven"):
+        for idx, slide in enumerate(slides):
+            narration = slide.get("narration") or ""
+            all_captions.extend(_captions_for_slide(
+                resolved_provider, workdir, idx, narration,
+                offset_s=spans[idx].start_s, dur=spans[idx].audio_s,
+                rate=rates[idx],
+                estimate=captions_cfg.get("estimate", True)))
 
     # Phase 4: concat + burn captions.
     raw = ff.concat_slides(parts, workdir=workdir)
     final_source = raw  # the file music/captions chain reads from
+    captions_burned = False
+    caption_failure: Optional[str] = None
+    srt_path = workdir / "captions.srt"
     if all_captions:
-        srt_path = workdir / "captions.srt"
         ass_path = workdir / "captions.ass"
         caps_mod.write_master_srt(all_captions, srt_path)
+        cap_style = theme_mod.caption_style_for(
+            theme, width=dimensions[0], height=dimensions[1],
+            avatar_slot=bool(avatar_cfg.get("static")),
+        )
         caps_mod.write_master_ass(all_captions, ass_path,
-                                  width=dimensions[0], height=dimensions[1])
+                                  width=dimensions[0], height=dimensions[1],
+                                  style=cap_style)
         print(f"[captions] {len(all_captions)} chunks via libass")
         try:
             ff.burn_captions(raw, ass_path, out_path)
             final_source = out_path
+            captions_burned = True
         except Exception as e:  # noqa: BLE001
             import shutil as _shutil
             _shutil.copyfile(raw, out_path)
             final_source = out_path
             stderr = getattr(e, "stderr", None) or ""
             tail = stderr.strip().splitlines()[-2:] if isinstance(stderr, str) else []
-            print(f"[captions] burn failed; shipping raw MP4 + SRT sidecar at:")
-            print(f"             {srt_path}")
-            if tail:
-                print(f"           ffmpeg said: {' | '.join(tail)}")
-            print(f"           fix: pip install imageio-ffmpeg (homebrew ffmpeg lacks libass)")
+            detail = f"{' | '.join(tail)}" if tail else str(e)
+            caption_failure = detail
+            print(f"[captions] burn FAILED — the MP4 below has NO burned-in captions.")
+            print(f"             SRT sidecar: {srt_path}")
+            print(f"             ffmpeg said: {detail}")
+            print(f"             fix: pip install imageio-ffmpeg (homebrew ffmpeg lacks libass)")
     else:
         import shutil as _shutil
         _shutil.copyfile(raw, out_path)
         final_source = out_path
 
-    # §5.10 explainer gates: machine-checked on the measured master timeline.
+    # §5.10 explainer gates: machine-checked on the MEASURED master timeline.
     gate_report: List[str] = []
     if explainer_mode:
-        gate_report = gates_mod.explainer_gate(slides, durations, gates_cfg)
+        gate_report = gates_mod.explainer_gate(slides, durations, gates_cfg, spans)
         for line in gate_report:
             print(line)
 
@@ -421,7 +465,8 @@ def make_video(slides: List[Dict[str, Any]], *,
     if clips_cfg and clips_cfg.get("emit", True):
         try:
             cut_list = clips_mod.build_clips(slides, durations,
-                                             hook_extra_s=float(clips_cfg.get("hook_extra_s", 0.0)))
+                                             hook_extra_s=float(clips_cfg.get("hook_extra_s", 0.0)),
+                                             spans=spans)
             clips_dir = out_path.parent / (clips_cfg.get("dir") or "clips")
             clips_manifest, clip_files = clips_mod.emit_clips(
                 out_path, cut_list, clips_dir,
@@ -432,7 +477,16 @@ def make_video(slides: List[Dict[str, Any]], *,
             clips_manifest = None
 
     duration = ff.ffprobe_duration(out_path)
+    # The master must match what we MEASURED, not what we assumed. If concat
+    # or the caption burn shifted it, say so — a silent desync is the exact
+    # class of bug this module exists to eliminate.
+    concat_delta = round(duration - measured_total, 3)
+    if abs(concat_delta) > 0.05:
+        print(f"[timeline] WARNING: master is {duration:.3f}s but measured "
+              f"slide total is {measured_total:.3f}s ({concat_delta:+.3f}s)")
     print(f"[done] {out_path}  duration: {duration:.1f}s")
+    if not captions_burned and all_captions:
+        print(f"[done] WARNING: captions were NOT burned in (see above)")
     print(f"[cache] {cache.summary()}")
 
     # Render report (EVENT-LOG-SCHEMA-v1.0-shaped) next to the output.
@@ -441,9 +495,27 @@ def make_video(slides: List[Dict[str, Any]], *,
         "tool": "rendermill",
         "out_path": str(out_path),
         "orientation": orientation,
+        "theme": theme_name,
         "duration_s": round(duration, 3),
+        "timeline": {
+            "source": "measured" ,
+            "pad_s": PAD_S,
+            "measured_total_s": round(measured_total, 3),
+            "audio_total_s": round(audio_total, 3),
+            "master_minus_measured_s": concat_delta,
+            "arithmetic_drift_worst_s": drift["worst_drift_s"],
+            "spans": [s.to_dict() for s in spans],
+        },
+        "captions": {
+            "chunks": len(all_captions),
+            "burned": captions_burned,
+            "srt": str(srt_path) if all_captions else None,
+            "failure": caption_failure,
+        },
         "slides": [
             {"idx": i, "narration_s": round(d, 3),
+             "encoded_s": spans[i].encoded_s,
+             "start_s": spans[i].start_s,
              "backdrop": bool(s.get("backdrop")), "role": s.get("role")}
             for i, (s, d) in enumerate(zip(slides, durations))
         ],

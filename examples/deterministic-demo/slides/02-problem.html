@@ -1,0 +1,24 @@
+<!doctype html>
+<html><head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .rows { display: flex; flex-direction: column; gap: 22px; margin-top: 34px; max-width: 1500px; }
+  .row { display: grid; grid-template-columns: 260px 1fr; align-items: center;
+         background: var(--panel); border: 1px solid var(--line);
+         border-radius: 12px; padding: 22px 30px; }
+  .k { font-family: var(--font-mono); font-size: 25px; color: var(--muted); }
+  .v { font-family: var(--font-mono); font-size: 27px; color: var(--text); }
+</style>
+</head>
+<body class="canvas h">
+  <div class="eyebrow">The hidden bug</div>
+  <h1>The timeline was <span class="strike">arithmetic</span>, not measurement.</h1>
+  <p class="muted" style="max-width:1420px;">Every render assumed each slide's MP4 was exactly its audio plus a 150ms pad.</p>
+  <div class="rows">
+    <div class="row"><div class="k">slide 1 start</div><div class="v">audio + <span class="accent">0.15</span></div></div>
+    <div class="row"><div class="k">slide 2 start</div><div class="v">audio + <span class="accent">0.15</span></div></div>
+    <div class="row"><div class="k">captions</div><div class="v">built from the same guess</div></div>
+    <div class="row"><div class="k">clip cuts</div><div class="v">cut on the same guess</div></div>
+  </div>
+</body></html>

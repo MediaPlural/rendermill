@@ -142,35 +142,10 @@ def load_project(path: Path):
     return cfg_mod.load(Path(path))
 
 
-def run_batch(project_dirs: List[Path], *, ceiling: float,
-              render_fn=None, out_override=None, yes=False) -> Dict[str, Any]:
-    """Render a queue of projects under the ceiling. `render_fn(project_dir)`
-    performs one render (the CLI injects cmd_render's core). Projects are
-    rendered in order; a CeilingExceeded halts the queue with the status.
-    Free-mode projects don't count against the ceiling ($0)."""
-    from . import config as cfg_mod
-
-    projects = []
-    for pd in project_dirs:
-        proj = cfg_mod.load(Path(pd))
-        reports = estimate_project(proj.slides, proj.config,
-                                   project_name=Path(pd).name)
-        projects.append((proj, reports))
-
-    spent = 0.0
-    rendered: List[str] = []
-    skipped: List[str] = []
-    for proj, rep in projects:
-        if rep.est_usd > 0:
-            check_ceiling(ceiling, spent, rep)
-        if render_fn is not None:
-            render_fn(proj)
-        spent += rep.est_usd
-        rendered.append(rep.project)
-    return {
-        "ceiling_usd": ceiling,
-        "spent_usd": round(spent, 4),
-        "rendered": rendered,
-        "skipped": skipped,
-        "reports": [rep.est_usd for _, rep in projects],
-    }
+# NOTE: an earlier `run_batch(project_dirs, ceiling=..., render_fn=...)` helper
+# used to live here. It was never called from cli.py — `cmd_batch` reimplemented
+# the same ceiling logic inline — and its `skipped` list was built and returned
+# but never appended to, so it always reported `skipped: []` no matter what
+# happened. Two implementations of the spend law is one too many: it is
+# deleted, and `cli.cmd_batch` is the single path. Cost math below stays here
+# because it is the part worth testing in isolation.

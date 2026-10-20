@@ -301,6 +301,41 @@ def _validate_preview_ttl(raw: Optional[int]) -> Optional[int]:
     return raw
 
 
+def cmd_theme(args: argparse.Namespace) -> int:
+    """Write the generated `_shared.css` for a deck, or list the built-ins.
+
+    The render path styles slides and captions from the same theme object, but
+    the browser side needs the matching stylesheet on disk. Before this command
+    existed the only way to get one was to hand-edit the scaffolded
+    `_shared.css`, which is exactly the drift the theme system removes.
+    """
+    from . import theme as theme_mod
+
+    if args.list_themes:
+        print("Built-in themes:")
+        for name in theme_mod.theme_names():
+            t = theme_mod.resolve(name)
+            print(f"  {name:<8} bg={t.bg} text={t.text} accent={t.accent}")
+        return 0
+
+    if not args.project_dir:
+        print("error: theme needs a project_dir (or --list)", file=sys.stderr)
+        return 2
+
+    proj = cfg_mod.load(Path(args.project_dir).resolve())
+    chosen = args.theme if args.theme is not None else proj.config.get("theme")
+    try:
+        t = theme_mod.resolve(chosen)
+    except theme_mod.ThemeError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    out = theme_mod.write_shared_css(proj.project_dir, t)
+    print(f"[theme] {t.name} -> {out}")
+    print(f"        captions: {t.caption.primary} on {t.bg} "
+          f"({t.caption.size}pt, outline {t.caption.outline})")
+    return 0
+
+
 def cmd_render(args: argparse.Namespace) -> int:
     project = cfg_mod.load(Path(args.project_dir))
     err = _ensure_keys_for(project)
@@ -333,6 +368,7 @@ def cmd_render(args: argparse.Namespace) -> int:
             music_cfg=project.config.get("music") or {},
             gates_cfg=project.config.get("gates") or {},
             clips_cfg=project.config.get("clips") or {},
+            theme=project.config.get("theme"),
             explainer_mode=bool(project.config.get("explainer")),
             free=(project.config.get("mode") == "free"),
             auto_yes=args.yes,
@@ -350,6 +386,28 @@ def cmd_render(args: argparse.Namespace) -> int:
     return 0
 
 
+def _batch_out_path(base_out: Optional[str], project_name: str) -> Optional[Path]:
+    """Resolve one project's output path under `rendermill batch`.
+
+    `--out` used to be handed to EVERY project's render, so a three-project
+    batch wrote all three masters to the same file — the last one silently
+    overwrote the first two, and each render also clobbered the previous
+    project's report + clip directory.
+
+    `--out` is now a DIRECTORY: each project writes `<dir>/<project>.mp4`
+    beside its own name. A `--out` that looks like a file (`x.mp4`) keeps
+    working, but only for a single-project batch — silently overwriting is
+    not a reasonable behaviour for N>1.
+    """
+    if not base_out:
+        return None
+    base = Path(base_out).expanduser()
+    if base.suffix:
+        return base
+    base.mkdir(parents=True, exist_ok=True)
+    return base / f"{_slugify(project_name)}.mp4"
+
+
 def cmd_batch(args: argparse.Namespace) -> int:
     """§5.7 headless batch: cost report + spend ceiling, auto-proceed under
     the ceiling, halt above it (Yellow gate per the spend law)."""
@@ -359,10 +417,15 @@ def cmd_batch(args: argparse.Namespace) -> int:
             print(f"error: project dir not found: {pd}", file=sys.stderr)
             return 2
 
+    if args.out and Path(args.out).suffix and len(project_dirs) > 1:
+        print(f"error: --out {args.out!r} names a single file but {len(project_dirs)} "
+              f"projects were given. Pass a DIRECTORY instead; each project "
+              f"writes <dir>/<project>.mp4.", file=sys.stderr)
+        return 2
+
     ceiling = batch_mod.resolve_ceiling(None, args.spend_ceiling)
 
     # Cost report first (no spend), then render under the ceiling.
-    from . import config as cfg_mod
     reports = []
     for pd in project_dirs:
         proj = cfg_mod.load(pd)
@@ -378,6 +441,7 @@ def cmd_batch(args: argparse.Namespace) -> int:
 
     spent = 0.0
     failures = 0
+    rendered: List[str] = []
     for proj, rep in reports:
         if rep.est_usd > 0:
             try:
@@ -390,16 +454,20 @@ def cmd_batch(args: argparse.Namespace) -> int:
                 return 4
         print(f"[batch] rendering {rep.project} (≈ ${rep.est_usd:.4f})")
         ns = argparse.Namespace(
-            project_dir=str(proj.project_dir), out=args.out, yes=True,
-            no_preview=True, preview_ttl=None,
+            project_dir=str(proj.project_dir),
+            out=_batch_out_path(args.out, rep.project),
+            yes=True, no_preview=True, preview_ttl=None,
         )
         rc = cmd_render(ns)
         spent += rep.est_usd
         if rc != 0:
             failures += 1
+            print(f"[batch] {rep.project} FAILED (rc={rc})", file=sys.stderr)
             if args.fail_fast:
                 return rc
-    print(f"[batch] done: {len(reports)} project(s), "
+        else:
+            rendered.append(rep.project)
+    print(f"[batch] done: {len(rendered)}/{len(reports)} rendered, "
           f"spent ≈ ${spent:.4f} under ${ceiling:.2f} ceiling")
     return 1 if failures else 0
 
@@ -511,6 +579,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="Non-interactive status only; print key health and exit.",
     )
     pst.set_defaults(func=cmd_setup)
+
+    pt = sub.add_parser(
+        "theme",
+        help="Write the generated deck _shared.css, or list built-in themes.",
+    )
+    pt.add_argument(
+        "project_dir", nargs="?", default=None,
+        help="Project directory (default: read `theme:` from the project).",
+    )
+    pt.add_argument(
+        "--theme", default=None, metavar="NAME",
+        help="Override the project's configured theme for this write.",
+    )
+    pt.add_argument(
+        "--list", dest="list_themes", action="store_true",
+        help="List the built-in themes and exit.",
+    )
+    pt.set_defaults(func=cmd_theme)
 
     pk = sub.add_parser("keys", help="Manage API keys.")
     pk.add_argument("action", choices=["list", "set", "test", "path"])

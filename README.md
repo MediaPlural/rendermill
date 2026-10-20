@@ -312,6 +312,8 @@ Optional fields on any slide:
 rendermill init [path]       # scaffold a project
 rendermill render            # the main command
 rendermill preview           # render slide PNGs only, no TTS spend
+rendermill theme [dir]       # write the deck's _shared.css from its theme
+rendermill theme --list      # show the built-in themes
 rendermill keys list         # show configured keys (masked)
 rendermill keys set EL=sk_x  # save a key
 rendermill keys test         # verify each key against its provider
@@ -323,6 +325,59 @@ rendermill keys path         # print the keys.env path
 - `--yes` / `-y`. Skip the interactive preview gate.
 - `--no-preview`. Render without even opening the preview server.
 - `--out path.mp4`. Override the output path.
+
+## Themes
+
+One `theme:` key in `slides.py` styles every slide **and** the burned-in
+captions, so a deck cannot drift into three different-looking slides.
+
+```python
+CONFIG = {
+    "theme": "signal",     # amber | field | signal | paper
+    # or override individual tokens:
+    # "theme": {"name": "field", "accent": "#ffb347"},
+}
+```
+
+Then write the matching stylesheet once:
+
+```
+rendermill theme .          # -> slides/_shared.css
+```
+
+An unknown theme name or a typo'd token fails at load with the valid set —
+it never produces a half-styled deck. Every built-in theme is contrast-checked
+in the test suite, and caption sizing is scaled per orientation so captions
+never collide with the avatar badge.
+
+## Determinism
+
+Slide positions on the master timeline are **measured, not assumed**. After
+each slide is encoded, ffprobe reads its true duration and every downstream
+consumer — captions, clip cuts, the explainer gates — derives its offsets from
+that single measured timeline. `out/rendermill-report.json` records the spans
+plus `arithmetic_drift_worst_s`: how far the old `audio + 0.15` assumption would
+have been wrong. If ffprobe is unavailable the render **fails loudly**; it
+never silently falls back to arithmetic.
+
+To machine-check a finished render (container, duration, timeline seams,
+caption burn, and a pixel diff proving caption ink actually landed):
+
+```
+python scripts/verify_render.py <project-dir>
+```
+
+## Batch
+
+```
+rendermill batch proj-a proj-b --spend-ceiling 5.00
+```
+
+Estimates cost for every project first and spends nothing until the estimate
+is under the ceiling; it halts *before* the project that would breach it.
+`--out` takes a **directory** — each project writes `<dir>/<project>.mp4`.
+Passing a single file with more than one project is a hard error, because
+silently overwriting is not a reasonable default.
 
 ## How it renders (one cycle)
 
