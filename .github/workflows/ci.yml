@@ -10,5 +10,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: install render deps (ffmpeg for real-clip tests, espeak-ng for local-TTS tests)
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q ffmpeg espeak-ng
       - run: pip install -q -e . pytest
       - run: pytest -q
