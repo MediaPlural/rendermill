@@ -1,0 +1,29 @@
+name: Feature request
+description: A capability Rendermill should have.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What you're trying to do that you can't. Concrete workflow, not a wish list.
+    validations:
+      required: true
+  - type: dropdown
+    id: comp
+    attributes:
+      label: Component
+      options:
+        - cli
+        - renderer
+        - tts
+        - lip-sync
+        - packaging
+        - docs
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed shape
+      description: If you can, sketch the command or API as you'd want to use it.

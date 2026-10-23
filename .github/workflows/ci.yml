@@ -16,3 +16,20 @@ jobs:
           sudo apt-get install -y -q ffmpeg espeak-ng
       - run: pip install -q -e . pytest
       - run: pytest -q
+  repo-guards:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: actionlint (workflow lint)
+        run: |
+          curl -fsSL https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz | tar xz actionlint
+          ./actionlint -color
+      - name: blob-size guard
+        run: |
+          limit=10485760
+          allow=$(grep -v '^#\|^$\|^BLOB' .github/blob-size-allowlist.txt | sed 's|^|./|')
+          out=$(find . -type f -not -path './.git/*' -size +"${limit}"c)
+          over=$(comm -23 <(echo "$out" | sort) <(echo "$allow" | sort))
+          if [ -n "$over" ]; then
+            echo "Files over ${limit} bytes not in .github/blob-size-allowlist.txt:"; echo "$over"; exit 1
+          fi
