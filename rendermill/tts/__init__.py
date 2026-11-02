@@ -13,14 +13,17 @@ Caching is wired through `cache.run`:
   - kind="tts" caches raw provider output (mp3 / wav / optional alignment sidecar)
   - kind="m4a" caches the silenceremove+atempo m4a encode
 
-Voice defaults (DO NOT change without reading CLAUDE.md):
-  ElevenLabs: cgSgspJ2msm6clMCkdW9  (Jessica)
+Voice defaults (canon = the Viiy voice stack; single source of truth is the
+`rendermill_voice_bridge` module — imported at runtime, never copied here):
+  ElevenLabs: Viiy Signature (eleven_v3, use_speaker_boost=False)
   Deepgram:   aura-2-thalia-en
   local:      auto  (best installed voice per-OS: say / SAPI / espeak-ng)
 """
 from __future__ import annotations
 import base64
+import importlib.util
 import json
+import os
 import platform
 import subprocess
 import urllib.error
@@ -33,11 +36,78 @@ from . import local as _local
 from . import macos as _macos  # kept for backward-compat imports/tests
 
 
+# The Viiy voice bridge is the single source of truth for the locked
+# ElevenLabs voice set (IDs, model, settings). We import it at runtime rather
+# than copying the IDs into this file, so the defaults cannot drift from canon.
+# `rendermill/tts/__init__.py` -> parents[2] is the repo root; the bridge sits
+# in the sibling skills tree under the viiy-hq checkout root.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_VOICE_BRIDGE_CANDIDATES = (
+    os.environ.get("VIIY_VOICE_BRIDGE"),
+    _REPO_ROOT.parents[2] / "skills" / "media" / "viiy-voice-design"
+    / "scripts" / "rendermill_voice_bridge.py",
+    Path.home() / "viiy-hq" / "skills" / "media" / "viiy-voice-design"
+    / "scripts" / "rendermill_voice_bridge.py",
+)
+
+_voice_bridge_mod = None
+
+
+def voice_bridge():
+    """Import the Viiy voice bridge (canon for the locked ElevenLabs voice set).
+
+    Override the bridge path with ``VIIY_VOICE_BRIDGE``. Raises a clear error
+    when the bridge cannot be found, since the defaults below depend on it.
+    """
+    global _voice_bridge_mod
+    if _voice_bridge_mod is not None:
+        return _voice_bridge_mod
+    for cand in _VOICE_BRIDGE_CANDIDATES:
+        if not cand:
+            continue
+        p = Path(cand)
+        if not p.exists():
+            continue
+        spec = importlib.util.spec_from_file_location("rendermill_voice_bridge", str(p))
+        if spec is None or spec.loader is None:
+            continue
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        _voice_bridge_mod = mod
+        return mod
+    raise RuntimeError(
+        "Viiy voice bridge not found. Set VIIY_VOICE_BRIDGE to the path of "
+        "rendermill_voice_bridge.py (the canonical voice registry)."
+    )
+
+
+def rendermill_tts(voice: str = "viiy-signature") -> Dict[str, Any]:
+    """Return the canonical rendermill `tts` block for a locked Viiy voice."""
+    return voice_bridge().rendermill_tts(voice)
+
+
+def drift_report(tts_cfg: Dict[str, Any] | None) -> list[str]:
+    """Flag an off-canon rendermill `tts` block. Empty list == on-canon.
+
+    Wired straight to the bridge's drift gate (the generic "Jessica" voice,
+    turbo models, and speaker-boost are all flagged here).
+    """
+    return voice_bridge().drift_report(tts_cfg)
+
+
+_bridge = voice_bridge()
+VIIY_VOICES = dict(_bridge.VIIY_VOICES)
+GENERIC_VOICE_IDS = dict(_bridge.GENERIC_VOICE_IDS)
+_VIIY_CANON = _bridge.rendermill_tts("viiy-signature")
+
+# provider stays "auto" so free mode / Deepgram / local still cascade; the
+# voice identity, model and settings are the Viiy canon from the bridge.
 DEFAULT_TTS = {
     "provider": "auto",
-    "voice_id": "cgSgspJ2msm6clMCkdW9",  # Jessica
-    "model": "eleven_turbo_v2_5",
-    "speaking_rate": 1.0,
+    "voice_id": _VIIY_CANON["voice_id"],
+    "model": _VIIY_CANON["model"],
+    "speaking_rate": _VIIY_CANON["speaking_rate"],
+    "voice_settings": dict(_VIIY_CANON["voice_settings"]),
     "deepgram_voice": "aura-2-thalia-en",
     "macos_voice": "auto",
     "local_voice": "auto",
@@ -90,10 +160,10 @@ def make_audio_elevenlabs(text: str, idx: int, *, workdir: Path,
     def _generate(out_path: Path) -> None:
         url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/with-timestamps"
         # Project-config voice_settings override (per voice-design canon);
-        # falls back to the historical defaults when not provided.
+        # falls back to the canon settings (speaker boost OFF) when not set.
         vs = dict(tts_cfg.get("voice_settings") or {
-            "stability": 0.5, "similarity_boost": 0.75,
-            "style": 0.0, "use_speaker_boost": True,
+            "stability": 0.55, "similarity_boost": 0.85,
+            "style": 0.20, "use_speaker_boost": False,
         })
         body = {
             "text": text,

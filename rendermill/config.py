@@ -39,24 +39,36 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
+def _default_tts_config() -> Dict[str, Any]:
+    """The project-level TTS default, sourced from the canon Viiy voice set.
+
+    Imported lazily so ``rendermill.config`` keeps its dependency on
+    ``rendermill.tts`` one-way and import-order-proof. The voice id / model /
+    settings live ONLY in the voice bridge — never pasted here.
+    """
+    from . import tts as tts_mod
+    d = tts_mod.DEFAULT_TTS
+    return {
+        "provider": d.get("provider", "auto"),
+        "voice_id": d["voice_id"],
+        "model": d["model"],
+        "speaking_rate": d.get("speaking_rate", 1.0),
+        "voice_settings": dict(d.get("voice_settings") or {}),
+        "deepgram_voice": d.get("deepgram_voice", "aura-2-thalia-en"),
+        "local_voice": d.get("local_voice", "auto"),
+        "macos_voice": d.get("macos_voice", "auto"),
+    }
+
+
 DEFAULT_CONFIG = {
     "title": "narrated-video",
     "orientation": "horizontal",  # "horizontal" (1920x1080) or "short" (1080x1920)
     "out_path": "out/video.mp4",
-    "tts": {
-        "provider": "auto",  # auto-select EL -> Deepgram -> local from the keys present
-        # §5.5 voice lane — eleven_v3 pinned (turbo_v2_5 drifts accent);
-        # falls back to the cascade when no EL key.
-        "voice_id": "cgSgspJ2msm6clMCkdW9",   # ElevenLabs "Jessica" — set your own
-        "model": "eleven_v3",
-        "speaking_rate": 1.0,
-        # Deepgram fallback voice if provider=deepgram
-        "deepgram_voice": "aura-2-thalia-en",
-        # Local (free) voice; "auto" picks the best installed voice per-OS
-        # (macOS `say` / Windows SAPI / Linux espeak-ng).
-        "local_voice": "auto",
-        "macos_voice": "auto",
-    },
+    # §5.5 voice lane — the Viiy voice stack is the canon default (eleven_v3,
+    # use_speaker_boost=False), sourced from rendermill.tts which imports the
+    # bridge. A legacy project that hardcodes the old "Jessica" id is flagged
+    # by the drift gate at render time.
+    "tts": _default_tts_config(),
     "lipsync": {
         "avatar": "assets/avatar.png",  # relative to project dir; only used on slides with lipsync=True
         "fal_omnihuman_version": "v1.5",
@@ -86,6 +98,10 @@ DEFAULT_CONFIG = {
     "explainer": False,
     # §5.6 music bed lane: {track, gain, ducking} — track rel. to project dir.
     "music": {},
+    # §5.3 animated-backdrop lane: {"preset": "<library preset>",
+    # "palette": null} — the preset resolves against the backdrops library
+    # index (sibling backdrops repo) to a full-frame looping b-roll mp4.
+    "backdrop": {},
     # §5.4 clip-first cuts: {"emit": true} auto-emits pre-timestamped
     # segments (hook / slide boundaries / CTA) + clips.json beside the master.
     "clips": {},
@@ -228,8 +244,8 @@ CONFIG = {
         # "auto" uses ElevenLabs if you have a key, else Deepgram, else free
         # local TTS — so this renders with no keys at all on any OS.
         "provider": "auto",
-        "voice_id": "cgSgspJ2msm6clMCkdW9",  # ElevenLabs Jessica (used only if auto picks EL)
-        "model": "eleven_turbo_v2_5",
+        "voice_id": "%(voice_id)s",  # Viiy Signature (canon default)
+        "model": "%(model)s",
         "speaking_rate": 1.0,
     },
     # Static presenter avatar (independent of free mode).
