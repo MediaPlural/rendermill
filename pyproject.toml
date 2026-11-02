@@ -30,7 +30,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0"]
+dev = ["pytest>=7.0", "jsonschema>=4.0"]
+# The Manim explainer lane (rendermill.manim_lane). Manim CE is the engine
+# (DESIGN.md §1) and jsonschema enforces the scene-list contract (§2). Both are
+# optional: the slide-video core does not need them, and the lane degrades
+# gracefully to structural validation when jsonschema is absent.
+manim = ["manim>=0.21", "jsonschema>=4.0"]
 
 [project.scripts]
 rendermill = "rendermill.cli:main"
@@ -48,4 +53,6 @@ rendermill = [
   "templates/*.css",
   "assets/*.png",
   "skill_data/**/*.md",
+  "manim_lane/scene_list_schema.json",
+  "manim_lane/scene_lists/*.json",
 ]
