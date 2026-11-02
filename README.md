@@ -314,6 +314,7 @@ rendermill render            # the main command
 rendermill preview           # render slide PNGs only, no TTS spend
 rendermill theme [dir]       # write the deck's _shared.css from its theme
 rendermill theme --list      # show the built-in themes
+rendermill voice             # emit the canonical Viiy tts block (JSON)
 rendermill keys list         # show configured keys (masked)
 rendermill keys set EL=sk_x  # save a key
 rendermill keys test         # verify each key against its provider
@@ -326,6 +327,11 @@ rendermill manim <scene.json> # Manim explainer lane: validate -> lint -> codege
 - `--yes` / `-y`. Skip the interactive preview gate.
 - `--no-preview`. Render without even opening the preview server.
 - `--out path.mp4`. Override the output path.
+- `--workers N` / `-j N`. Parallelize the slide→PNG and TTS phases across N
+  threads (default `min(cores, 8)`; `1` = sequential). Each step is an
+  independent subprocess/network call, so the default saturates the machine.
+  The local `say` voice is capped at ~2× by the shared macOS speech lock; paid
+  providers scale with `N`.
 
 ## Manim explainer lane
 
@@ -355,6 +361,42 @@ pre-render, so generated code never pops math content with `FadeIn`/`FadeOut`.
 Manim CE is an optional extra: `pip install 'rendermill[manim]'`. Without it, the
 schema/lint/codegen stages (and `--dry-run`) still work; only the render stage
 and the `ExplainerScene` base need manim.
+
+## Voice & backdrops
+
+Rendermill's default voice is the **Viiy voice stack** — a locked ElevenLabs
+voice set (Viiy Signature, `eleven_v3`, `use_speaker_boost=False`). The single
+source of truth is the `rendermill_voice_bridge` module, imported at runtime
+(never copied), so the defaults cannot drift from canon. Override its location
+with `VIIY_VOICE_BRIDGE`.
+
+```bash
+rendermill voice                          # emit the canonical `tts` block (JSON)
+rendermill voice --voice viiy-signature   # a specific locked voice
+rendermill voice --check-project DIR      # drift-check DIR's tts block (exit 1 if drifted)
+```
+
+A legacy project that hardcodes the old generic "Jessica" id, a turbo model, or
+speaker-boost is flagged by a non-fatal **drift gate** at render time — every
+off-canon voice is reported before any spend, and the render still proceeds.
+
+### Animated backdrops
+
+A `backdrop` config key resolves a named preset (plus optional palette) against
+the backdrops library index — a full-frame looping b-roll mp4 that video slides
+composite behind the presenter. The index is a sibling-repo manifest
+(`library_index.json`); override its path with `VIIY_BACKDROPS_INDEX`.
+
+```python
+CONFIG = {
+    # ...
+    "backdrop": {"preset": "aurora", "palette": "ember"},
+}
+```
+
+A slide can also carry an explicit `backdrop` field; it is resolved the same way
+as a `video` field, so a video slide needs *either* a `video` clip or a
+`backdrop` preset.
 
 ## Themes
 
