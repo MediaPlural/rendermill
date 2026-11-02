@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from . import avatar as avatar_mod
+from . import backdrops as backdrops_mod
 from . import cache as cache_mod
 from . import captions as caps_mod
 from . import clips as clips_mod
@@ -41,15 +42,10 @@ from . import tts as tts_mod
 PAD_S = timeline_mod.PAD_S
 
 
-DEFAULT_TTS = {
-    "provider": "auto",
-    "voice_id": "cgSgspJ2msm6clMCkdW9",  # Jessica
-    "model": "eleven_turbo_v2_5",
-    "speaking_rate": 1.0,
-    "deepgram_voice": "aura-2-thalia-en",
-    "local_voice": "auto",
-    "macos_voice": "auto",
-}
+# Single TTS default, sourced from rendermill.tts (which pulls the locked
+# Viiy voice set from the canon bridge). This used to be a duplicate copy of
+# the generic "Jessica" default — the two drifted apart.
+DEFAULT_TTS = tts_mod.DEFAULT_TTS
 
 DEFAULT_LIPSYNC = {
     "avatar": "assets/avatar.png",
@@ -135,9 +131,15 @@ def _render_slide_png(idx: int, slide: Dict[str, Any], workdir: Path,
 
     if kind == "video":
         # Render a backdrop (title strip + a framed viewport rectangle).
-        vid_rel = slide.get("video")
+        # The video source may be an explicit `video` clip OR a backdrop
+        # preset resolved against the library index (set on slide["backdrop"]
+        # by backdrops.apply_backdrop before this runs).
+        vid_rel = slide.get("video") or slide.get("backdrop")
         if not vid_rel:
-            raise ValueError(f"slide {idx}: type=video requires `video` field")
+            raise ValueError(
+                f"slide {idx}: type=video requires a `video` field "
+                f"or a backdrop preset"
+            )
         title = slide.get("title", "").replace("<", "&lt;").replace(">", "&gt;")
         margin_x = int(width * 0.08)
         top = int(height * 0.13)
@@ -290,6 +292,7 @@ def make_video(slides: List[Dict[str, Any]], *,
                music_cfg: Optional[Dict[str, Any]] = None,
                gates_cfg: Optional[Dict[str, Any]] = None,
                clips_cfg: Optional[Dict[str, Any]] = None,
+               backdrop_cfg: Optional[Dict[str, Any]] = None,
                theme: Any = None,
                explainer_mode: bool = False,
                free: bool = False,
@@ -318,6 +321,11 @@ def make_video(slides: List[Dict[str, Any]], *,
     captions_cfg = captions_cfg or {}
     music_cfg = music_cfg or {}
     gates_cfg = gates_cfg or {}
+    backdrop_cfg = backdrop_cfg or {}
+
+    # Voice drift gate (non-fatal): flag any off-canon tts block before spend.
+    for finding in tts_mod.drift_report(tts_cfg):
+        print(f"[tts] drift: {finding}")
     # Resolve the deck theme ONCE, up front, so a typo fails before any render
     # work happens rather than after the whole deck has been encoded.
     theme_name = theme_mod.resolve(theme).name
@@ -332,8 +340,19 @@ def make_video(slides: List[Dict[str, Any]], *,
 
     # Record the project dir on each slide so backdrop paths can resolve
     # relative to it (§5.3 backdrops usually live in an assets/ or library/).
+    # Also resolve any backdrop *preset* against the backdrops library index
+    # (the bridge-generated canon manifest): a preset becomes an absolute mp4
+    # path that the §5.3 full-frame backdrop composite consumes.
     for s in slides:
         s["_project_dir"] = str(project_dir) if project_dir else None
+        bd = backdrops_mod.apply_backdrop(
+            s, orientation=orientation,
+            default_preset=backdrop_cfg.get("preset"),
+            default_palette=backdrop_cfg.get("palette"),
+        )
+        if bd:
+            label = s.get("title") or s.get("type") or "slide"
+            print(f"  [backdrops] {label!r} -> {bd.name}")
 
     # Phase 0: §5.2 preflight gates (word-count estimate, $0 to check).
     gates_mod.preflight_hook_estimate(slides, gates_cfg)

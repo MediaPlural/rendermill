@@ -93,7 +93,7 @@ def estimate_project(slides: List[Dict[str, Any]], config: Dict[str, Any],
         if provider == "local":
             est_tts = 0.0
         else:
-            model = tts_cfg.get("model", "eleven_turbo_v2_5")
+            model = tts_cfg.get("model") or tts_mod.DEFAULT_TTS["model"]
             price = ELEVEN_PRICE_PER_CHAR.get(model, DEFAULT_PRICE_PER_CHAR)
             est_tts = chars * price
             for s in slides:

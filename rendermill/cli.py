@@ -92,6 +92,8 @@ def cmd_init(args: argparse.Namespace) -> int:
     else:
         slides_py.write_text(cfg_mod.SAMPLE_SLIDES_PY % {
             "title": title, "slug": slug, "orientation": orientation,
+            "voice_id": tts_mod.DEFAULT_TTS["voice_id"],
+            "model": tts_mod.DEFAULT_TTS["model"],
         })
 
     # Sample avatar (optional). If a packaged avatar.png exists, copy it.
@@ -338,6 +340,25 @@ def cmd_theme(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_voice(args: argparse.Namespace) -> int:
+    """Emit the canonical Viiy `tts` block, or drift-check a project's config.
+
+    Wired straight to the voice bridge (single source of truth) via
+    ``rendermill.tts``. ``--check-project`` returns 1 when the project's
+    ``CONFIG["tts"]`` drifts from canon (e.g. the legacy "Jessica" id).
+    """
+    if args.check_project:
+        project_dir = Path(args.check_project)
+        tts_cfg = tts_mod.voice_bridge().load_project_tts(project_dir)
+        findings = tts_mod.drift_report(tts_cfg)
+        print(f"project: {project_dir}")
+        print(f"tts block: {json.dumps(tts_cfg, indent=2, sort_keys=True) if tts_cfg else '(none)'}")
+        print("DRIFT:", json.dumps(findings, indent=2) if findings else "none — on-canon")
+        return 1 if findings else 0
+    print(json.dumps(tts_mod.rendermill_tts(args.voice), indent=2, sort_keys=True))
+    return 0
+
+
 def cmd_render(args: argparse.Namespace) -> int:
     project = cfg_mod.load(Path(args.project_dir))
     err = _ensure_keys_for(project)
@@ -370,6 +391,7 @@ def cmd_render(args: argparse.Namespace) -> int:
             music_cfg=project.config.get("music") or {},
             gates_cfg=project.config.get("gates") or {},
             clips_cfg=project.config.get("clips") or {},
+            backdrop_cfg=project.config.get("backdrop") or {},
             theme=project.config.get("theme"),
             explainer_mode=bool(project.config.get("explainer")),
             free=(project.config.get("mode") == "free"),
@@ -638,6 +660,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="List the built-in themes and exit.",
     )
     pt.set_defaults(func=cmd_theme)
+
+    pv = sub.add_parser(
+        "voice",
+        help="Emit the canonical Viiy tts block, or drift-check a project.",
+    )
+    pv.add_argument(
+        "--voice", default="viiy-signature",
+        choices=sorted(tts_mod.VIIY_VOICES),
+        help="Viiy voice to emit (default: viiy-signature).",
+    )
+    pv.add_argument(
+        "--check-project", metavar="DIR", default=None,
+        help="Read DIR/slides.py CONFIG['tts'] and report drift vs canon.",
+    )
+    pv.set_defaults(func=cmd_voice)
 
     pk = sub.add_parser("keys", help="Manage API keys.")
     pk.add_argument("action", choices=["list", "set", "test", "path"])
