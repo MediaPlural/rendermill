@@ -1,0 +1,34 @@
+<!doctype html>
+<html><head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .swatches { display: flex; gap: 18px; margin-top: 38px; }
+  .sw { flex: 1; border-radius: 12px; padding: 24px 22px; border: 1px solid var(--line); }
+  .sw .chip { height: 56px; border-radius: 8px; margin-bottom: 14px; }
+  .sw .nm { font-family: var(--font-mono); font-size: 20px; color: var(--muted); }
+  .code { margin-top: 40px; background: var(--panel); border: 1px solid var(--line);
+          border-radius: 12px; padding: 28px 34px; max-width: 1420px;
+          font-family: var(--font-mono); font-size: 25px; line-height: 1.55; }
+  .kw { color: var(--accent); } .str { color: var(--good); } .key { color: var(--strike); }
+</style>
+</head>
+<body class="canvas h">
+  <div class="eyebrow">One declaration</div>
+  <h1>The theme styles the slides <span class="accent">and</span> the captions.</h1>
+  <div class="swatches">
+    <div class="sw"><div class="chip" style="background:#0d1117;"></div><div class="nm">signal</div></div>
+    <div class="sw"><div class="chip" style="background:#0f1216;"></div><div class="nm">amber</div></div>
+    <div class="sw"><div class="chip" style="background:#0c1310;"></div><div class="nm">field</div></div>
+    <div class="sw"><div class="chip" style="background:#fbfaf7;"></div><div class="nm">paper</div></div>
+  </div>
+  <div class="code">
+<span class="kw">CONFIG</span> = {
+<br>&nbsp;&nbsp;<span class="key">"theme"</span>: <span class="str">"signal"</span>,
+<br>&nbsp;&nbsp;<span class="key">"captions"</span>: { <span class="key">"burn"</span>: <span class="str">True</span> },
+<br>}
+  </div>
+  <p class="muted" style="margin-top:28px; font-size:22px;">
+    A typo fails at load. Every theme is contrast-checked in the test suite.
+  </p>
+</body></html>

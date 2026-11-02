@@ -177,6 +177,21 @@ CONFIG blocks this fork adds:
 
 ### Step 4: Write slide HTMLs
 
+Declare the deck theme in `CONFIG` **first**, then generate the stylesheet:
+
+```python
+"theme": "signal",   # amber | field | signal | paper
+```
+
+```
+rendermill theme .   # writes slides/_shared.css from that declaration
+```
+
+One `theme:` key styles every slide **and** the burned-in captions, so the
+deck cannot drift into three different-looking slides. Never hand-edit
+`_shared.css` — it is regenerated and your changes are overwritten. An unknown
+theme name or a typo'd token fails at load with the valid set.
+
 In `slides/`, use the provided `_shared.css` for design tokens. Body class:
 `canvas h` for horizontal, `canvas v` for short. Add a slide-specific
 `<style>` block per file.
@@ -233,7 +248,7 @@ The cache is content-hashed. Tweak a single narration string and re-render;
 only that slide regenerates TTS. Same for slide HTML (only that PNG
 re-renders), backdrops (hashed by PNG+audio+broll), and lipsync.
 
-To bypass all caches: `MNV_FORCE_REGEN=1 rendermill render`.
+To bypass all caches: `RENDERMILL_FORCE_REGEN=1 rendermill render`.
 
 ## Hard rules
 

@@ -22,7 +22,9 @@ import json
 import subprocess
 from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
+
+from .timeline import PAD_S, SlideSpan
 
 
 @dataclass
@@ -43,25 +45,53 @@ def _fmt_ts(seconds: float) -> str:
 
 def build_clips(slides: List[Dict[str, Any]], durations: List[float],
                 *, hook_extra_s: float = 0.0,
-                pad_s: float = 0.15) -> List[Clip]:
+                pad_s: Optional[float] = None,
+                spans: Optional[Sequence[SlideSpan]] = None) -> List[Clip]:
     """Assemble the cut list from slides, their measured narration durations,
-    and slide roles. The master timeline arithmetic (dur + 0.15 pad per slide)
-    mirrors core.make_video exactly."""
+    and slide roles.
+
+    Prefers `spans` — the MEASURED positions of each encoded slide on the
+    master timeline. A clip cut on the WRONG boundary is an off-by-one that
+    only shows up when an editor pastes it into a timeline, so the cuts are
+    derived from what was actually encoded, not from `sum(audio + pad)`.
+
+    `pad_s` defaults to the single PAD_S definition in timeline.py and is
+    only consulted on the arithmetic fallback path (no spans supplied).
+    """
+    if pad_s is None:
+        pad_s = PAD_S
     clips: List[Clip] = []
-    t = 0.0
-    for idx, (slide, dur) in enumerate(zip(slides, durations)):
-        start = t
-        end = t + dur + pad_s
-        role = slide.get("role") or f"slide_{idx:02d}"
-        label = slide.get("label") or role
-        if idx == 0:
-            # §5.4: the hook segment is the whole first slide (short by law).
-            clips.append(Clip("hook", label, 0.0, end + hook_extra_s,
-                              slide.get("narration") or ""))
-        else:
-            clips.append(Clip(role, label, start, end,
-                              slide.get("narration") or ""))
-        t = end
+
+    if spans is not None:
+        # Measured: a slide's encoded length already includes its pad, so
+        # the out point is the span's end, not start + audio + pad.
+        for idx, (slide, span) in enumerate(zip(slides, spans)):
+            start, end = span.start_s, span.end_s
+            role = slide.get("role") or f"slide_{idx:02d}"
+            label = slide.get("label") or role
+            if idx == 0:
+                # §5.4: the hook segment is the whole first slide (short by law).
+                clips.append(Clip("hook", label, 0.0, end + hook_extra_s,
+                                  slide.get("narration") or ""))
+            else:
+                clips.append(Clip(role, label, start, end,
+                                  slide.get("narration") or ""))
+    else:
+        t = 0.0
+        for idx, (slide, dur) in enumerate(zip(slides, durations)):
+            start = t
+            end = t + dur + pad_s
+            role = slide.get("role") or f"slide_{idx:02d}"
+            label = slide.get("label") or role
+            if idx == 0:
+                # §5.4: the hook segment is the whole first slide (short by law).
+                clips.append(Clip("hook", label, 0.0, end + hook_extra_s,
+                                  slide.get("narration") or ""))
+            else:
+                clips.append(Clip(role, label, start, end,
+                                  slide.get("narration") or ""))
+            t = end
+
     # CTA: the declared role=cta slide (or the last slide re-emitted as cta).
     cta = next((c for c in clips if c.role == "cta"), None)
     if cta is None and clips:

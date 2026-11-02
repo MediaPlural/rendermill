@@ -18,6 +18,9 @@ video_build/
 captions.srt
 captions.ass
 
+# Generated render reports: machine-specific absolute paths, not source.
+rendermill-report.json
+
 # Project keys (should never live in the repo)
 keys.env
 .env

@@ -18,6 +18,8 @@ import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from .timeline import PAD_S
+
 
 def _video_slide_cmd(png: Path, clip: Path, m4a: Path, out: Path,
                      vp: Tuple[int, int, int, int], pad_dur: float) -> List[str]:
@@ -31,7 +33,7 @@ def _video_slide_cmd(png: Path, clip: Path, m4a: Path, out: Path,
         f"[1:v]scale={vp_w}:{vp_h}:force_original_aspect_ratio=decrease,"
         f"pad={vp_w}:{vp_h}:(ow-iw)/2:(oh-ih)/2:color=0x000000[clip];"
         f"[0:v][clip]overlay=x={vp_x}:y={vp_y}[v];"
-        f"[2:a]apad=pad_dur=0.15[a]",
+        f"[2:a]apad=pad_dur={PAD_S:.3f}[a]",
         "-map", "[v]", "-map", "[a]",
         "-c:v", "libx264", "-pix_fmt", "yuv420p",
         "-t", f"{pad_dur:.3f}",
@@ -50,7 +52,7 @@ def _lipsync_overlay_cmd(png: Path, circle: Path, m4a: Path, out: Path,
         "-i", str(m4a),
         "-filter_complex",
         f"[0:v][1:v]overlay=x={ox}:y={oy}:shortest=0[v];"
-        f"[2:a]apad=pad_dur=0.15[a]",
+        f"[2:a]apad=pad_dur={PAD_S:.3f}[a]",
         "-map", "[v]", "-map", "[a]",
         "-c:v", "libx264", "-pix_fmt", "yuv420p",
         "-t", f"{pad_dur:.3f}",
@@ -74,7 +76,7 @@ def _static_avatar_overlay_cmd(png: Path, badge: Path, m4a: Path, out: Path,
         "-i", str(m4a),
         "-filter_complex",
         f"[0:v][1:v]overlay=x={ox}:y={oy}:shortest=0[v];"
-        f"[2:a]apad=pad_dur=0.15[a]",
+        f"[2:a]apad=pad_dur={PAD_S:.3f}[a]",
         "-map", "[v]", "-map", "[a]",
         "-c:v", "libx264", "-pix_fmt", "yuv420p",
         "-t", f"{pad_dur:.3f}",
@@ -97,7 +99,7 @@ def _backdrop_slide_cmd(png: Path, backdrop: Path, m4a: Path, out: Path,
         f"[1:v]scale={w}:{h}:force_original_aspect_ratio=increase,"
         f"crop={w}:{h}[bg];"
         f"[bg][0:v]overlay=0:0:shortest=0:format=auto[v];"
-        f"[2:a]apad=pad_dur=0.15[a]",
+        f"[2:a]apad=pad_dur={PAD_S:.3f}[a]",
         "-map", "[v]", "-map", "[a]",
         "-c:v", "libx264", "-pix_fmt", "yuv420p",
         "-t", f"{pad_dur:.3f}",
@@ -112,7 +114,7 @@ def _still_slide_cmd(png: Path, m4a: Path, out: Path, pad_dur: float) -> List[st
         "ffmpeg", "-y",
         "-loop", "1", "-i", str(png),
         "-i", str(m4a),
-        "-filter_complex", "[1:a]apad=pad_dur=0.15[a]",
+        "-filter_complex", f"[1:a]apad=pad_dur={PAD_S:.3f}[a]",
         "-map", "0:v", "-map", "[a]",
         "-c:v", "libx264", "-tune", "stillimage",
         "-pix_fmt", "yuv420p",
@@ -135,7 +137,7 @@ def make_slide_video(png: Path, m4a: Path, duration: float, idx: int, *,
     """
     width, height = dimensions
     out = workdir / f"slide_{idx:02d}.mp4"
-    pad_dur = duration + 0.15
+    pad_dur = duration + PAD_S
 
     # Variant 0: §5.3 animated backdrop. The slide PNG (typically an HTML
     # slide with transparent regions / text) composites over looping b-roll;

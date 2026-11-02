@@ -1,0 +1,27 @@
+<!doctype html>
+<html><head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  table { margin-top: 36px; border-collapse: collapse; width: 1500px; }
+  th, td { text-align: left; padding: 18px 26px; font-family: var(--font-mono); font-size: 26px; }
+  th { color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--line);
+       text-transform: uppercase; letter-spacing: 0.12em; font-size: 20px; }
+  td { border-bottom: 1px solid var(--line); }
+  .bad { color: var(--strike); }
+  .good { color: var(--good); }
+</style>
+</head>
+<body class="canvas h">
+  <div class="eyebrow">Measured, not assumed</div>
+  <h1>The encoder disagreed with the math.</h1>
+  <p class="muted" style="max-width:1420px;">Per-slide error from a real 5-slide render:</p>
+  <table>
+    <tr><th>Slide</th><th>Assumed</th><th>Actual</th><th>Error</th></tr>
+    <tr><td>01</td><td>8.240s</td><td>8.214s</td><td class="bad">&minus;0.026s</td></tr>
+    <tr><td>02</td><td>16.480s</td><td>16.480s</td><td class="good">&plus;0.000s</td></tr>
+    <tr><td>03</td><td>27.100s</td><td>27.096s</td><td class="bad">&minus;0.004s</td></tr>
+    <tr><td>04</td><td>34.220s</td><td>34.209s</td><td class="bad">&minus;0.011s</td></tr>
+  </table>
+  <p class="muted mono" style="margin-top:30px; font-size:22px;">This run cancelled out by luck. Nothing guaranteed it.</p>
+</body></html>

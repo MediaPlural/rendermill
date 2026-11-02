@@ -5,7 +5,7 @@ A cache is rooted at `<workdir>/cache/<kind>/<hash>.<ext>`. Each `kind`
 under cache/. The hash is computed from a list of inputs (scalars, bytes,
 or Path objects whose bytes are mixed in).
 
-Set `MNV_FORCE_REGEN=1` to invalidate every lookup for a single run.
+Set `RENDERMILL_FORCE_REGEN=1` to invalidate every lookup for a single run.
 """
 from __future__ import annotations
 import hashlib
@@ -18,7 +18,7 @@ _KINDS = ("chrome", "tts", "m4a", "lipsync", "circle", "avatar_circle", "slide_m
 
 
 def _force_regen() -> bool:
-    return os.environ.get("MNV_FORCE_REGEN", "").lower() in ("1", "true", "yes")
+    return os.environ.get("RENDERMILL_FORCE_REGEN", "").lower() in ("1", "true", "yes")
 
 
 class Cache:

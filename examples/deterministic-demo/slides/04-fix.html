@@ -1,0 +1,42 @@
+<!doctype html>
+<html><head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  .flow { display: flex; align-items: stretch; gap: 0; margin-top: 44px; }
+  .step { flex: 1; background: var(--panel); border: 1px solid var(--line);
+          border-radius: 12px; padding: 30px 28px; }
+  .arrow { display: flex; align-items: center; padding: 0 18px;
+           color: var(--accent); font-size: 40px; font-weight: 700; }
+  .n { font-family: var(--font-mono); font-size: 20px; color: var(--accent);
+       margin-bottom: 14px; letter-spacing: 0.1em; }
+  .step h2 { font-size: 30px; }
+  .step p { font-size: 21px; color: var(--muted); line-height: 1.45; }
+</style>
+</head>
+<body class="canvas h">
+  <div class="eyebrow">The fix</div>
+  <h1>ffprobe every slide. Then add nothing.</h1>
+  <div class="flow">
+    <div class="step">
+      <div class="n">01</div>
+      <h2>Encode</h2>
+      <p>Each slide becomes its own MP4, exactly as before.</p>
+    </div>
+    <div class="arrow">&rarr;</div>
+    <div class="step">
+      <div class="n">02</div>
+      <h2>Measure</h2>
+      <p>ffprobe reads the true duration of every encoded slide.</p>
+    </div>
+    <div class="arrow">&rarr;</div>
+    <div class="step">
+      <div class="n">03</div>
+      <h2>Derive</h2>
+      <p>Captions, clips and gates all read that one measured timeline.</p>
+    </div>
+  </div>
+  <p class="good mono" style="margin-top:40px; font-size:23px;">
+    If ffprobe is missing, the render fails loudly &mdash; it never falls back to arithmetic.
+  </p>
+</body></html>
