@@ -1,0 +1,45 @@
+name: Bug report
+description: Something in Rendermill doesn't work the way the docs say it does.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you ran, what you expected, what you got. Paste the exact command and the exact output.
+    validations:
+      required: true
+  - type: textarea
+    id: receipt
+    attributes:
+      label: Receipt
+      description: The exact command(s) and their verbatim output (a release note is a receipt, so is a bug report).
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - render
+        - tts
+        - lip-sync
+        - install-update
+        - cli
+        - docs
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Rendermill version
+      description: Output of `rendermill --version` or the commit sha you are on.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: OS / environment
+      placeholder: "macOS 26 / Ubuntu 24.04 / Windows 11"
+    validations:
+      required: true

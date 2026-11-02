@@ -1,0 +1,5 @@
+# Files larger than BLOB_LIMIT bytes are rejected unless allowlisted here.
+# One path or glob per line. Keep this list short — large files are a smell.
+BLOB_LIMIT = 10485760
+
+# allowlisted paths below

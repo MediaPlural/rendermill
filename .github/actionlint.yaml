@@ -1,0 +1,4 @@
+# actionlint configuration — https://rhysd.github.io/actionlint/
+self-hosted-runner:
+  # labels of self-hosted runners allowed in workflow files
+  labels: []
