@@ -30,3 +30,7 @@ keys.env
 .DS_Store
 .gstack/
 .claude/logs/
+
+# Benchmark artifacts (written by scripts/benchmark_parallel.py)
+scripts/.bench-demo/
+scripts/.bench-work/
