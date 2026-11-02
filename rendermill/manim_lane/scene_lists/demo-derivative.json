@@ -1,0 +1,75 @@
+{
+  "video_id": "demo-derivative",
+  "title": "The power rule",
+  "narration_rate_wpm": 147,
+  "config": {
+    "resolution": [1920, 1080],
+    "fps": 60,
+    "background": "#0B0F14"
+  },
+  "beats": [
+    {
+      "scene_id": "s01",
+      "narration": "Here's something every calculus student learns.",
+      "est_seconds": 2.86,
+      "visual_verb": "WRITE",
+      "latex": ["f(x) = x^2"],
+      "objects": [
+        { "name": "fx", "latex": "f(x) = x^2", "role": "question" }
+      ],
+      "continuity": null,
+      "on_screen_text": "The power rule",
+      "hook_role": true
+    },
+    {
+      "scene_id": "s02",
+      "narration": "The derivative of x squared is two x.",
+      "est_seconds": 3.27,
+      "visual_verb": "TRANSFORM",
+      "latex": ["f'(x) = 2x"],
+      "objects": [
+        { "name": "fprime", "latex": "f'(x) = 2x", "role": "result" }
+      ],
+      "continuity": { "morph_from": "fx", "morph_to": "fprime" },
+      "on_screen_text": null,
+      "hook_role": false
+    },
+    {
+      "scene_id": "s03",
+      "narration": "Just remember, this breaks if the exponent is zero.",
+      "est_seconds": 3.67,
+      "visual_verb": "WRITE",
+      "latex": ["\\text{needs } n \\neq 0"],
+      "objects": [
+        { "name": "caveat", "latex": "\\text{needs } n \\neq 0", "role": "annotation" }
+      ],
+      "continuity": null,
+      "on_screen_text": null,
+      "hook_role": false
+    },
+    {
+      "scene_id": "s04",
+      "narration": "Because a constant has zero slope.",
+      "est_seconds": 2.45,
+      "visual_verb": "HIGHLIGHT",
+      "latex": [],
+      "objects": [
+        { "name": "caveat", "latex": "\\text{needs } n \\neq 0", "role": "danger" }
+      ],
+      "continuity": null,
+      "on_screen_text": null,
+      "hook_role": false
+    },
+    {
+      "scene_id": "s05",
+      "narration": "And that's the power rule.",
+      "est_seconds": 2.04,
+      "visual_verb": "HOLD",
+      "latex": [],
+      "objects": [],
+      "continuity": null,
+      "on_screen_text": null,
+      "hook_role": false
+    }
+  ]
+}

@@ -11,6 +11,7 @@ dist/
 
 # Project-local render artifacts
 video_build/
+media/
 *.mp4
 !examples/**/expected.mp4
 !docs/demo.mp4

@@ -1,0 +1,104 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://viiy.systems/manim-lane/scene-list.schema.json",
+  "title": "SceneList",
+  "description": "Manim-lane scene-list contract: one beat per visual/narration event. Emitted by the LLM before any render code. build.py validates against this and rejects pre-render.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["video_id", "title", "narration_rate_wpm", "config", "beats"],
+  "properties": {
+    "video_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$",
+      "description": "Stable id; content-hash cache key."
+    },
+    "title": { "type": "string", "description": "Human title / section card text." },
+    "narration_rate_wpm": {
+      "type": "number",
+      "default": 147,
+      "description": "Words-per-minute for est_seconds derivation (§5.10 measured default)."
+    },
+    "config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "resolution": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "minItems": 2,
+          "maxItems": 2,
+          "default": [1920, 1080]
+        },
+        "fps": { "type": "integer", "default": 60 },
+        "background": { "type": "string", "default": "#0B0F14" },
+        "tex_root": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "TEX macro registry — identical notation across scenes (§3.1)."
+        }
+      }
+    },
+    "beats": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/beat" }
+    }
+  },
+  "definitions": {
+    "beat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scene_id", "narration", "est_seconds", "visual_verb",
+        "latex", "objects", "continuity", "on_screen_text", "hook_role"
+      ],
+      "properties": {
+        "scene_id": { "type": "string", "pattern": "^s[0-9]{2,3}$" },
+        "narration": { "type": "string" },
+        "est_seconds": { "type": "number", "minimum": 0.1 },
+        "visual_verb": {
+          "type": "string",
+          "enum": ["WRITE", "TRANSFORM", "HIGHLIGHT", "PLOT", "ZOOM", "ARRANGE", "HOLD"]
+        },
+        "latex": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Exact LaTeX strings rendered via MathTex."
+        },
+        "objects": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/object" }
+        },
+        "continuity": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["morph_from", "morph_to"],
+              "properties": {
+                "morph_from": { "type": "string" },
+                "morph_to": { "type": "string" }
+              }
+            }
+          ]
+        },
+        "on_screen_text": { "oneOf": [ { "type": "null" }, { "type": "string" } ] },
+        "hook_role": { "type": "boolean", "default": false }
+      }
+    },
+    "object": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "latex", "role"],
+      "properties": {
+        "name": { "type": "string", "description": "Named mobject — the continuity lint's key." },
+        "latex": { "type": "string", "description": "Exact LaTeX for this mobject." },
+        "role": {
+          "type": "string",
+          "enum": ["known", "question", "result", "danger", "annotation"]
+        }
+      }
+    }
+  }
+}

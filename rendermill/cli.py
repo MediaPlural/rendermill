@@ -13,6 +13,7 @@ Subcommands:
                    keys path                 Print the keys file path.
   render         Render the video for a project directory.
   preview        Render slide PNGs and open the local preview gate without spending TTS.
+  manim          Manim explainer lane: validate -> lint -> codegen -> render (--tier).
 
 The intended workflow is Claude-driven: after `pipx install` and
 `rendermill install-skill`, the user opens Claude Code and asks for a video
@@ -515,6 +516,23 @@ def cmd_preview(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_manim(args: argparse.Namespace) -> int:
+    """Delegate to the Manim explainer lane (validate -> lint -> codegen -> render).
+
+    The lane lives in rendermill.manim_lane; imported lazily so the slide-video
+    core never pulls in manim at import time.
+    """
+    from .manim_lane import build as manim_build
+    argv = ["--scene-list", args.scene_list, "--tier", args.tier]
+    if args.media_dir:
+        argv += ["--media-dir", args.media_dir]
+    if args.out_dir:
+        argv += ["--out-dir", args.out_dir]
+    if args.dry_run:
+        argv += ["--dry-run"]
+    return manim_build.main(argv)
+
+
 def cmd_fetch_asset(args: argparse.Namespace) -> int:
     """Fetch one or more assets from programmatic sources into ./assets/.
 
@@ -702,6 +720,24 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     pp.set_defaults(func=cmd_preview)
+
+    pm = sub.add_parser(
+        "manim",
+        help="Manim explainer lane: validate -> lint -> codegen -> render "
+             "(--tier animatic|full|still).",
+    )
+    pm.add_argument("--scene-list", required=True,
+                    help="Path to the scene-list JSON (the contract).")
+    pm.add_argument("--tier", choices=["animatic", "full", "still"],
+                    default="animatic",
+                    help="Render tier (default: animatic = 854x480 @ 15fps).")
+    pm.add_argument("--media-dir", default=None,
+                    help="manim media output dir (default: ./media).")
+    pm.add_argument("--out-dir", default=None,
+                    help="Dir for the generated scene file (default: <media-dir>/scenes).")
+    pm.add_argument("--dry-run", action="store_true",
+                    help="Stop after codegen + generated-scene import; do not render.")
+    pm.set_defaults(func=cmd_manim)
 
     return p
 

@@ -318,6 +318,7 @@ rendermill keys list         # show configured keys (masked)
 rendermill keys set EL=sk_x  # save a key
 rendermill keys test         # verify each key against its provider
 rendermill keys path         # print the keys.env path
+rendermill manim <scene.json> # Manim explainer lane: validate -> lint -> codegen -> render
 ```
 
 `render` flags:
@@ -325,6 +326,35 @@ rendermill keys path         # print the keys.env path
 - `--yes` / `-y`. Skip the interactive preview gate.
 - `--no-preview`. Render without even opening the preview server.
 - `--out path.mp4`. Override the output path.
+
+## Manim explainer lane
+
+`rendermill.manim_lane` renders 3Blue1Brown-style math explainers from a
+**strict-JSON scene list** (one beat per visual/narration event). The pipeline is
+mechanical and lintable *before any render cost*:
+
+```
+scene-list JSON --validate (JSON Schema)--> lint (continuity law)
+    --> codegen (scene-list -> Python scene) --> manim render (--tier)
+```
+
+```bash
+rendermill manim --scene-list scene.json --tier animatic   # 854x480 @ 15fps (default)
+rendermill manim --scene-list scene.json --tier full       # 1080p60, winners only
+rendermill manim --scene-list scene.json --tier still      # keyframe stills
+rendermill manim --scene-list scene.json --dry-run         # validate->codegen->import, no render
+```
+
+The scene list is the contract artifact: a closed `visual_verb` enum
+(WRITE/TRANSFORM/HIGHLIGHT/PLOT/ZOOM/ARRANGE/HOLD), named mobjects with semantic
+roles (`known`/`question`/`result`/`danger`/`annotation` -> fixed org-wide
+colors), and a `continuity` field. The continuity law — an object whose `latex`
+changes across an adjacent beat *without* a `continuity` entry — is rejected
+pre-render, so generated code never pops math content with `FadeIn`/`FadeOut`.
+
+Manim CE is an optional extra: `pip install 'rendermill[manim]'`. Without it, the
+schema/lint/codegen stages (and `--dry-run`) still work; only the render stage
+and the `ExplainerScene` base need manim.
 
 ## Themes
 
