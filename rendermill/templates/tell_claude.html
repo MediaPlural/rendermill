@@ -1,38 +1,49 @@
 <!doctype html>
-<html><head>
-<meta charset="utf-8">
-<link rel="stylesheet" href="_shared.css">
-<style>
-  .row { display: flex; flex-direction: column; gap: 36px; max-width: 1500px; margin-top: 32px; }
-  .bubble {
-    background: var(--panel); border: 1px solid var(--line);
-    border-radius: 18px; padding: 26px 32px;
-    font-size: 30px; line-height: 1.5; color: var(--text);
-    max-width: 1100px;
-  }
-  .bubble.user {
-    background: rgba(250, 200, 90, 0.10);
-    border-color: var(--accent);
-    align-self: flex-start;
-  }
-  .bubble.label {
-    font-size: 14px; letter-spacing: 0.22em; text-transform: uppercase;
-    color: var(--muted); margin-bottom: 8px; font-weight: 700;
-    background: none; border: none; padding: 0;
-  }
-  .bubble .who {
-    font-size: 14px; letter-spacing: 0.22em; text-transform: uppercase;
-    color: var(--accent); font-weight: 700; margin-bottom: 10px;
-  }
-</style>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="_shared.css">
+  <style>
+    .conversation {
+      display: flex;
+      flex-direction: column;
+      gap: 30px;
+      max-width: 1280px;
+      margin-top: 36px;
+    }
+    .bubble {
+      background: var(--card);
+      border: 1px solid var(--edge);
+      border-radius: 20px;
+      padding: 26px 34px;
+      font-size: 32px;
+      line-height: 1.5;
+      color: var(--paper);
+      max-width: 1020px;
+    }
+    .bubble.speaker {
+      align-self: flex-start;
+      background: rgba(255, 180, 84, 0.09);
+      border-color: var(--ember);
+    }
+    .who {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ember);
+      margin-bottom: 10px;
+    }
+  </style>
 </head>
-<body class="canvas h">
-  <div class="eyebrow">Step one</div>
-  <h1>Tell Claude what you want.</h1>
-  <div class="row">
-    <div class="bubble user">
+<body class="canvas landscape">
+  <div class="kicker">Step one</div>
+  <h2 class="title">Tell your agent what you want.</h2>
+  <div class="conversation">
+    <div class="bubble speaker">
       <div class="who">You</div>
-      Make a 30-second video explaining what an SSD does.
+      Make me a thirty-second video explaining what an SSD does.
     </div>
   </div>
-</body></html>
+</body>
+</html>
