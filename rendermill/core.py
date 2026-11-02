@@ -28,6 +28,7 @@ from . import clips as clips_mod
 from . import ffmpeg_video as ff
 from . import gates as gates_mod
 from . import lipsync as lip_mod
+from . import parallel as parallel_mod
 from . import preview as preview_mod
 from . import renderer_html
 from . import theme as theme_mod
@@ -71,69 +72,84 @@ def _resolve(path_str: str, project_dir: Optional[Path]) -> Path:
 
 
 def render_pngs(slides: List[Dict[str, Any]], *, workdir: Path,
-                project_dir: Optional[Path], dimensions: Tuple[int, int]) -> List[Optional[Path]]:
+                project_dir: Optional[Path], dimensions: Tuple[int, int],
+                workers: Optional[int] = None) -> List[Optional[Path]]:
     """Render PNGs for HTML slides + copy image/video slide backgrounds.
 
     Returns one entry per slide, in order. Index N maps to `workdir/slide_NN.png`.
     For HTML slides we render directly; for image slides we copy/resize via
     Chrome by wrapping the image in a tiny HTML; for video slides we render
     an empty backdrop (PNG) into which the clip will be composited later.
+
+    ``workers`` parallelizes the per-slide Chrome screenshots (each is an
+    independent ``subprocess``, so threads saturate the same cores a process
+    pool would). ``None``/``1`` = the original sequential loop.
     """
     width, height = dimensions
-    out_pngs: List[Optional[Path]] = []
-    for idx, slide in enumerate(slides):
-        kind = slide.get("type", "image")
-        png_path = workdir / f"slide_{idx:02d}.png"
-        if kind == "html":
-            html_rel = slide.get("html")
-            if not html_rel:
-                raise ValueError(f"slide {idx}: type=html requires `html` field")
-            html_path = _resolve(html_rel, project_dir)
-            if not html_path.exists():
-                raise FileNotFoundError(f"slide {idx}: HTML not found: {html_path}")
-            print(f"  [html->png] slide {idx:02d}: {html_rel}")
-            renderer_html.render_html_to_png(html_path, png_path, width, height)
-            out_pngs.append(png_path)
-            continue
+    w = parallel_mod.effective_workers(workers)
+    tasks = [(idx, slide, workdir, project_dir, width, height)
+             for idx, slide in enumerate(slides)]
+    pngs = parallel_mod.map_threads(
+        lambda t: _render_slide_png(*t), tasks, workers=w)
+    return list(pngs)
 
-        if kind == "image":
-            img_rel = slide.get("image")
-            if not img_rel:
-                raise ValueError(f"slide {idx}: type=image requires `image` field")
-            img_path = _resolve(img_rel, project_dir)
-            if not img_path.exists():
-                raise FileNotFoundError(f"slide {idx}: image not found: {img_path}")
-            # Wrap the image in a tiny HTML so Chrome can box it to the canvas.
-            wrapper = workdir / f"_imgwrap_{idx:02d}.html"
-            title = slide.get("title", "").replace("<", "&lt;").replace(">", "&gt;")
-            title_strip = (
-                f'<div class="title">{title}</div>' if title else ""
-            )
-            wrapper.write_text(_image_wrapper_html(img_path, width, height, title_strip))
-            print(f"  [img->png]  slide {idx:02d}: {img_rel}")
-            renderer_html.render_html_to_png(wrapper, png_path, width, height)
-            out_pngs.append(png_path)
-            continue
 
-        if kind == "video":
-            # Render a backdrop (title strip + a framed viewport rectangle).
-            vid_rel = slide.get("video")
-            if not vid_rel:
-                raise ValueError(f"slide {idx}: type=video requires `video` field")
-            title = slide.get("title", "").replace("<", "&lt;").replace(">", "&gt;")
-            margin_x = int(width * 0.08)
-            top = int(height * 0.13)
-            vp_w = width - 2 * margin_x
-            vp_h = height - top - int(height * 0.06)
-            slide["_vp"] = (margin_x, top, vp_w, vp_h)
-            wrapper = workdir / f"_vidwrap_{idx:02d}.html"
-            wrapper.write_text(_video_backdrop_html(width, height, title, slide["_vp"]))
-            renderer_html.render_html_to_png(wrapper, png_path, width, height)
-            out_pngs.append(png_path)
-            continue
+def _render_slide_png(idx: int, slide: Dict[str, Any], workdir: Path,
+                      project_dir: Optional[Path], width: int,
+                      height: int) -> Path:
+    """Render one slide's PNG. Pure w.r.t. other slides — safe to parallelize.
 
-        raise ValueError(f"slide {idx}: unknown type {kind!r}")
-    return out_pngs
+    The only shared mutation is ``slide["_vp"]`` for type=video, and it is set
+    and read by the *same* slide only, after this phase joins.
+    """
+    kind = slide.get("type", "image")
+    png_path = workdir / f"slide_{idx:02d}.png"
+    if kind == "html":
+        html_rel = slide.get("html")
+        if not html_rel:
+            raise ValueError(f"slide {idx}: type=html requires `html` field")
+        html_path = _resolve(html_rel, project_dir)
+        if not html_path.exists():
+            raise FileNotFoundError(f"slide {idx}: HTML not found: {html_path}")
+        print(f"  [html->png] slide {idx:02d}: {html_rel}")
+        renderer_html.render_html_to_png(html_path, png_path, width, height)
+        return png_path
+
+    if kind == "image":
+        img_rel = slide.get("image")
+        if not img_rel:
+            raise ValueError(f"slide {idx}: type=image requires `image` field")
+        img_path = _resolve(img_rel, project_dir)
+        if not img_path.exists():
+            raise FileNotFoundError(f"slide {idx}: image not found: {img_path}")
+        # Wrap the image in a tiny HTML so Chrome can box it to the canvas.
+        wrapper = workdir / f"_imgwrap_{idx:02d}.html"
+        title = slide.get("title", "").replace("<", "&lt;").replace(">", "&gt;")
+        title_strip = (
+            f'<div class="title">{title}</div>' if title else ""
+        )
+        wrapper.write_text(_image_wrapper_html(img_path, width, height, title_strip))
+        print(f"  [img->png]  slide {idx:02d}: {img_rel}")
+        renderer_html.render_html_to_png(wrapper, png_path, width, height)
+        return png_path
+
+    if kind == "video":
+        # Render a backdrop (title strip + a framed viewport rectangle).
+        vid_rel = slide.get("video")
+        if not vid_rel:
+            raise ValueError(f"slide {idx}: type=video requires `video` field")
+        title = slide.get("title", "").replace("<", "&lt;").replace(">", "&gt;")
+        margin_x = int(width * 0.08)
+        top = int(height * 0.13)
+        vp_w = width - 2 * margin_x
+        vp_h = height - top - int(height * 0.06)
+        slide["_vp"] = (margin_x, top, vp_w, vp_h)
+        wrapper = workdir / f"_vidwrap_{idx:02d}.html"
+        wrapper.write_text(_video_backdrop_html(width, height, title, slide["_vp"]))
+        renderer_html.render_html_to_png(wrapper, png_path, width, height)
+        return png_path
+
+    raise ValueError(f"slide {idx}: unknown type {kind!r}")
 
 
 def _image_wrapper_html(img_path: Path, w: int, h: int, title_strip: str) -> str:
@@ -215,6 +231,53 @@ def _captions_for_slide(provider: str, workdir: Path, idx: int, narration: str,
     return []
 
 
+def _make_slide_audio(task: Tuple[int, str, Path, Any, Dict[str, Any]]) -> Tuple[Path, float]:
+    """One slide's TTS: synthesize narration to m4a. Pure w.r.t. other slides —
+    safe to run on the worker pool. The shared ``Cache`` guards its own slots.
+    """
+    idx, narration, workdir, cache, slide_tts = task
+    return tts_mod.make_audio(
+        narration, idx, workdir=workdir, cache=cache, tts_cfg=slide_tts)
+
+
+def make_audio_batch(slides: List[Dict[str, Any]], *,
+                     workdir: Path, cache, tts_cfg: Dict[str, Any],
+                     resolved_provider: str, rates: List[float],
+                     workers: Optional[int] = None) -> List[Tuple[Path, float]]:
+    """Phase 3a: synthesize every slide's narration, in order, on a worker pool.
+
+    The per-slide TTS call is a subprocess (or a network call) that releases
+    the GIL, so a thread pool saturates the available bandwidth. The local OS
+    voice (`say`) tops out at ~``parallel.SAY_SPEEDUP_CEILING``x *speedup* —
+    the macOS speech engine holds a shared lock — but it is NOT worker-capped:
+    fewer workers reach only ~1.8x, so the full count is handed through.
+
+    Returns ``[(m4a, duration), ...]`` in slide order. Raises ``ValueError``
+    (missing narration) before any TTS spend happens.
+    """
+    tasks: List[Tuple[int, str, Path, Any, Dict[str, Any]]] = []
+    for idx, slide in enumerate(slides):
+        narration = slide.get("narration") or ""
+        if not narration.strip():
+            raise ValueError(f"slide {idx}: missing narration text")
+        slide_tts = {
+            **tts_cfg,
+            "provider": resolved_provider,
+            "speaking_rate": rates[idx],
+        }
+        tasks.append((idx, narration, workdir, cache, slide_tts))
+
+    tts_w = parallel_mod.tts_workers(resolved_provider, workers)
+    if ((resolved_provider or "").lower() in ("local", "macos", "say", "free")
+            and tts_w > parallel_mod.SAY_SPEEDUP_CEILING):
+        print(
+            f"  [tts] local voice: macOS `say` caps concurrent synthesis at "
+            f"~{parallel_mod.SAY_SPEEDUP_CEILING:.0f}x speedup (shared speech "
+            f"lock) — {tts_w} workers saturate the OS, not scale linearly"
+        )
+    return parallel_mod.map_threads(_make_slide_audio, tasks, workers=tts_w)
+
+
 def make_video(slides: List[Dict[str, Any]], *,
                workdir: Path,
                orientation: str = "horizontal",
@@ -232,12 +295,19 @@ def make_video(slides: List[Dict[str, Any]], *,
                free: bool = False,
                auto_yes: bool = False,
                skip_preview: bool = False,
-               preview_ttl: Optional[int] = None) -> Path:
+               preview_ttl: Optional[int] = None,
+               workers: Optional[int] = None) -> Path:
     """End-to-end: PNGs → gates → preview gate → TTS → optional lipsync →
     slide MP4s → concat → caption burn → music bed → clip cuts.
 
     Returns the final MP4 path and writes a `rendermill-report.json`
     manifest (timings, gates, clips, costs) next to the output.
+
+    ``workers`` parallelizes the slide→PNG and TTS phases (each a thread pool
+    of subprocess/network calls). ``None`` = ``parallel.workers_default()``
+    (min(cores, 8)); ``1`` = the original sequential loop. The MP4 encode
+    phase stays sequential: x264 is already multithreaded per invocation, so
+    it is bounded by the encoder, not the pool (see ``rendermill.parallel``).
     """
     workdir = Path(workdir).resolve()
     workdir.mkdir(parents=True, exist_ok=True)
@@ -268,8 +338,10 @@ def make_video(slides: List[Dict[str, Any]], *,
     # Phase 0: §5.2 preflight gates (word-count estimate, $0 to check).
     gates_mod.preflight_hook_estimate(slides, gates_cfg)
 
-    # Phase 1: render slide PNGs (cheap + no third-party cost).
-    render_pngs(slides, workdir=workdir, project_dir=project_dir, dimensions=dimensions)
+    # Phase 1: render slide PNGs (cheap + no third-party cost). Parallelized
+    # across `workers` — each Chrome screenshot is an independent subprocess.
+    render_pngs(slides, workdir=workdir, project_dir=project_dir,
+                dimensions=dimensions, workers=workers)
 
     # Phase 2: preview gate. Give the user a chance to abort before TTS spend.
     if not skip_preview:
@@ -303,22 +375,28 @@ def make_video(slides: List[Dict[str, Any]], *,
     parts: List[Path] = []
     audios: List[Path] = []
     all_captions: List[Tuple[float, float, str]] = []
-    durations: List[float] = []
-    rates: List[float] = []
-    # Narration offsets are filled in AFTER every slide is encoded and the
-    # encoded MP4s have been measured (see phase 3b). Captions used to be
-    # built inside this loop against an assumed offset.
+
+    # Per-slide speaking rate (drives TTS and, later, caption estimation).
+    rates = [float(s.get("speed") or tts_cfg.get("speaking_rate", 1.0))
+             for s in slides]
+
+    # Phase 3a: TTS (cached) — synthesized in parallel on a worker pool. Each
+    # per-slide call is a subprocess/network call that releases the GIL, so a
+    # thread pool saturates the available bandwidth; the local `say` voice is
+    # capped at ~2x by the shared speech lock (see rendermill.parallel).
+    tts_results = make_audio_batch(
+        slides, workdir=workdir, cache=cache, tts_cfg=tts_cfg,
+        resolved_provider=resolved_provider, rates=rates, workers=workers,
+    )
+    durations = [d for _, d in tts_results]
+    audios = [m for m, _ in tts_results]
+
+    # Phase 3b: hook gate (after slide-0 audio), optional lipsync, per-slide
+    # MP4 stitch — sequential. x264 is already multithreaded per invocation,
+    # and gate/lipsync ordering is simplest kept in-order. Narration offsets
+    # are filled in AFTER every slide is encoded and measured (see below).
     for idx, slide in enumerate(slides):
-        narration = slide.get("narration") or ""
-        if not narration.strip():
-            raise ValueError(f"slide {idx}: missing narration text")
-        rate = float(slide.get("speed") or tts_cfg.get("speaking_rate", 1.0))
-        slide_tts = {**tts_cfg, "provider": resolved_provider, "speaking_rate": rate}
-        rate_tag = f" speed={rate}x" if abs(rate - 1.0) > 1e-3 else ""
-        print(f"  slide {idx + 1}/{len(slides)}: TTS ({slide_tts['provider']}){rate_tag}")
-        m4a, dur = tts_mod.make_audio(narration, idx, workdir=workdir, cache=cache, tts_cfg=slide_tts)
-        durations.append(dur)
-        audios.append(m4a)
+        m4a, dur = tts_results[idx]
 
         # §5.2 hook gate: measured, authoritative, runs after slide-0 audio
         # only — a violation costs one slide of TTS, not a full render.
@@ -362,10 +440,9 @@ def make_video(slides: List[Dict[str, Any]], *,
             avatar_circle=slide_avatar,
         )
         parts.append(mp4)
-        rates.append(rate)
         print(f"    -> {dur:.1f}s audio")
 
-    # Phase 3b: MEASURE the encoded slides and derive every downstream offset
+    # Phase 3c: MEASURE the encoded slides and derive every downstream offset
     # from those measurements. Captions, gate checks and clip cuts all key off
     # this timeline, so guessing it made all three drift apart.
     spans = timeline_mod.build_timeline(parts, audios, slides, pad_s=PAD_S)

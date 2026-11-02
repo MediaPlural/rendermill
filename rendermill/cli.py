@@ -375,6 +375,7 @@ def cmd_render(args: argparse.Namespace) -> int:
             auto_yes=args.yes,
             skip_preview=args.no_preview,
             preview_ttl=_validate_preview_ttl(args.preview_ttl),
+            workers=getattr(args, "workers", None),
         )
     except SystemExit as e:
         print(f"[render] {e}", file=sys.stderr)
@@ -650,6 +651,15 @@ def build_parser() -> argparse.ArgumentParser:
             "render may still exit 0 even when the report says something "
             "went wrong, so the verifier becomes the only signal — and CI "
             "without the verifier ships silently (QA audit F6)."
+        ),
+    )
+    pr.add_argument(
+        "--workers", "-j", type=int, default=None, metavar="N",
+        help=(
+            "Parallelize the slide->PNG and TTS phases across N threads "
+            "(default: min(cores, 8); 1 = sequential). The local `say` voice "
+            "tops out at ~2x speedup (macOS speech lock); paid providers "
+            "scale with N."
         ),
     )
     pr.set_defaults(func=cmd_render)

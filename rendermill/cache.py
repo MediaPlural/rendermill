@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import threading
 from pathlib import Path
 from typing import Callable, Iterable
 
@@ -57,6 +58,8 @@ class Cache:
             (self.root / kind).mkdir(exist_ok=True)
         self._hits: dict[str, int] = {}
         self._misses: dict[str, int] = {}
+        self._locks: dict[tuple[str, str], threading.Lock] = {}
+        self._locks_guard = threading.Lock()
 
     # -- key derivation ---------------------------------------------------
 
@@ -91,6 +94,21 @@ class Cache:
         slot.parent.mkdir(parents=True, exist_ok=True)
         return slot
 
+    def _slot_lock(self, kind: str, slot_name: str) -> threading.Lock:
+        """A per-slot lock, so concurrent producers for the *same* slot
+        serialize while different slots proceed in parallel.
+
+        Without this, two threads generating an identical artifact (e.g. two
+        slides sharing the same narration text under a parallel TTS phase)
+        would both miss, both run the producer, and race the same output file.
+        """
+        with self._locks_guard:
+            lock = self._locks.get((kind, slot_name))
+            if lock is None:
+                lock = threading.Lock()
+                self._locks[(kind, slot_name)] = lock
+            return lock
+
     def run(
         self,
         kind: str,
@@ -105,18 +123,23 @@ class Cache:
         producer that died silently can never masquerade as a cache hit on the
         next run. Producers that might fail partway through should write to a
         sibling temp file and ``os.replace`` it into place.
+
+        Thread-safe: the check-then-produce sequence is guarded by a
+        per-slot lock, so a parallel render that lands on the same content
+        hash produces the artifact exactly once instead of racing it.
         """
         slot = self.path(kind, key_inputs, ext)
-        if slot.exists() and not _forced():
-            self._note(kind, hit=True)
+        with self._slot_lock(kind, slot.name):
+            if slot.exists() and not _forced():
+                self._note(kind, hit=True)
+                return slot
+            self._note(kind, hit=False)
+            generator(slot)
+            if not slot.exists():
+                raise RuntimeError(
+                    f"cache producer for {kind!r} returned without writing {slot}"
+                )
             return slot
-        self._note(kind, hit=False)
-        generator(slot)
-        if not slot.exists():
-            raise RuntimeError(
-                f"cache producer for {kind!r} returned without writing {slot}"
-            )
-        return slot
 
     def summary(self) -> str:
         """One-line report, e.g. ``hits=3 misses=1  tts:2/3 m4a:1/1``."""
