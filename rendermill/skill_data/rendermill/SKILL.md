@@ -5,8 +5,8 @@ description: Use when the user wants to produce a narrated slide video (explaine
 
 # Making a narrated video
 
-This skill drives the `rendermill` package (the render pipeline; MIT
-fork of rendermill, internal module path `rendermill/`). The user describes
+This skill drives the `rendermill` package (the render pipeline; MIT-licensed,
+internal module path `rendermill/`). The user describes
 what they want. You write the slides and narration. The mill ships the MP4,
 plus pre-timestamped clip segments and a render report.
 
@@ -28,8 +28,7 @@ rendermill --version           # confirm CLI is installed
 rendermill keys list           # confirm at least ELEVENLABS_API_KEY is set
 ```
 
-If the CLI is missing, install from this repo (editable, keeps the fork
-current):
+If the CLI is missing, install from this repo (editable):
 
 ```
 cd ~/rendermill
@@ -49,7 +48,7 @@ an SRT sidecar by default. `imageio-ffmpeg` carries a libass-enabled binary.
 
 ## The rendermill upgrades (spec §5)
 
-This fork adds, on top of upstream rendermill:
+Rendermill adds, on top of the base renderer:
 
 - **§5.3 animated backdrops.** Per-slide `backdrop: "<path>.mp4"` fuses the
   slide PNG over looping deterministic simulation b-roll (library at
@@ -162,7 +161,7 @@ Optional per-slide fields: `lipsync: True`, `speed: 1.2`, `title: "..."`,
 `role: "hook" | "question" | "stakes" | "beat" | "payoff" | "recap" | "cta"`
 (needed by the §5.10 explainer gates and the §5.4 clip labels).
 
-CONFIG blocks this fork adds:
+CONFIG blocks rendermill adds:
 
 ```python
 "gates": {"hook_max_s": 3.0},   # §5.2; set None to disable the hook gate
@@ -322,8 +321,8 @@ See `references/troubleshooting.md` for the full failure-mode catalog.
 ## Reference
 
 - Spec: `marketing/engine/VIDEO-RENDER-BACKEND-SPEC-2026-10-02.md` §5
-- Package source: this repo (MIT fork of
-  https://github.com/MediaPlural/rendermill; attribution preserved)
+- Package source: this repo (MIT-licensed;
+  attribution preserved in LICENSE)
 - CLI help: `rendermill --help`, `rendermill <subcommand> --help`
 - Design tokens and layout patterns: `references/style.md`
 - Asset sourcing catalog: `references/assets.md`
