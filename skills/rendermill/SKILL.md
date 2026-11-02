@@ -59,7 +59,7 @@ bundled Claude skill at `$MILL/rendermill/skill_data/rendermill/SKILL.md`
 - **Spend ceiling (the spend law):** paid TTS only through batch mode
   or an explicit ceiling; the yellow-gate halt needs human approval.
 - **No credentials in the repo**; keys live in `~/.config/rendermill/keys.env`.
-- **Provenance:** MIT fork of rendermill; keep LICENSE + attribution.
+- **Provenance:** MIT-licensed; upstream attribution retained in LICENSE.
 - **Output lands in the project's out/ dir or the engine renders/ dir.**
   Never write into the repo itself.
 - **No em-dashes in narration or slide text.**
